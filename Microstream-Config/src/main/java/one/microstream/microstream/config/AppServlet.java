@@ -1,9 +1,9 @@
 
 package one.microstream.microstream.config;
 
-import javax.servlet.annotation.WebServlet;
-
 import com.rapidclipse.framework.server.RapServlet;
+
+import jakarta.servlet.annotation.WebServlet;
 
 
 @WebServlet(urlPatterns = "/*", asyncSupported = true)

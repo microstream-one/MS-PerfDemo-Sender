@@ -1,0 +1,32 @@
+@import url("custom-style.css");
+@import url("grid-layout.css");
+
+html {
+  --lumo-size-xl: 3rem;
+  --lumo-size-l: 2.5rem;
+  --lumo-size-m: 2rem;
+  --lumo-size-s: 1.75rem;
+  --lumo-size-xs: 1.5rem;
+  --lumo-space-xl: 1.875rem;
+  --lumo-space-l: 1.25rem;
+  --lumo-space-m: 0.625rem;
+  --lumo-space-s: 0.3125rem;
+  --lumo-space-xs: 0.1875rem;
+  --lumo-font-size: 1rem;
+  --lumo-font-size-xxxl: 1.75rem;
+  --lumo-font-size-xxl: 1.375rem;
+  --lumo-font-size-xl: 1.125rem;
+  --lumo-font-size-l: 1rem;
+  --lumo-font-size-m: 0.875rem;
+  --lumo-font-size-s: 0.8125rem;
+  --lumo-font-size-xs: 0.75rem;
+  --lumo-font-size-xxs: 0.6875rem;
+}
+
+[theme~="dark"] {
+  --lumo-base-color: #282a2d;
+  --lumo-primary-text-color: #00a0e6;
+  --lumo-primary-color-50pct: rgba(0, 160, 230, 0.5);
+  --lumo-primary-color-10pct: rgba(0, 160, 230, 0.1);
+  --lumo-primary-color: #00a0e6;
+}

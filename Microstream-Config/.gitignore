@@ -1,1 +1,12 @@
 /target/
+
+node_modules/
+frontend/generated/
+.npmrc
+pnpmfile.js
+.pnpmfile.cjs
+webpack.generated.js
+vite.generated.ts
+tsconfig.json
+types.d.ts
+index.html
