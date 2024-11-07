@@ -6,7 +6,6 @@
 <?import com.vaadin.flow.component.grid.Grid?>
 <?import com.vaadin.flow.component.html.Div?>
 <?import com.vaadin.flow.component.html.Hr?>
-<?import com.vaadin.flow.component.html.Label?>
 <?import com.vaadin.flow.component.html.NativeLabel?>
 <?import com.vaadin.flow.component.orderedlayout.HorizontalLayout?>
 <?import com.vaadin.flow.component.orderedlayout.VerticalLayout?>
@@ -14,7 +13,7 @@
 <?import com.vaadin.flow.component.textfield.NumberField?>
 <?import java.lang.String?>
 <?import one.microstream.microstream.config.domain.Action?>
-<VerticalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="MainLayout" x:route="main">
+<VerticalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="MainLayout" x:route="/">
     <x:constraints zpos="0" width="100%" height="100%" />
     <Div x:name="div">
         <x:constraints width="90%" alignment="CENTER" height="80%" flex-grow="0.0" />
@@ -40,7 +39,6 @@
                         <typeArgument type="String" />
                     </x:typeArguments>
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                    <x:event>valueChange.valueChanged</x:event>
                 </RadioButtonGroup>
                 <Hr x:name="hr2">
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
@@ -51,24 +49,21 @@
                 <NumberField x:name="rangeAmountThreads" value="1.0">
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
-                <NativeLabel x:name="nativeLabel2" text="Ramp up delay (ms)">
+                <NativeLabel x:name="nativeLabel2" text="Run Count">
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
                 </NativeLabel>
-                <NumberField x:name="rangeRampUp" value="10000.0">
+                <NumberField x:name="rangeRunCount" value="1.0">
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
                 <NativeLabel x:name="nativeLabel3" text="Send delay (ms)">
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
                 </NativeLabel>
-                <NumberField x:name="rangeSendDelay" value="1.0">
+                <NumberField x:name="rangeSendDelay" value="0.0">
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
                 <Hr x:name="hr3">
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
                 </Hr>
-                <Label x:name="label" text="No Tasks running">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                </Label>
             </VerticalLayout>
             <Grid x:themeVariants="LUMO_ROW_STRIPES" x:name="grid">
                 <x:typeArguments>

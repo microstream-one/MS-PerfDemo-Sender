@@ -1,12 +1,11 @@
 
-package one.microstream.microstream.config;
+package one.microstream.microstream.config.core.auth;
 
 import com.rapidclipse.framework.security.authentication.Authenticator;
 import com.rapidclipse.framework.security.authentication.AuthenticatorProvider;
 import com.rapidclipse.framework.security.authentication.CredentialsUsernamePassword;
 import com.rapidclipse.framework.security.util.PasswordHasher;
 
-import one.microstream.microstream.config.core.MicroStreamAuthenticator;
 import one.microstream.microstream.config.domain.User;
 
 

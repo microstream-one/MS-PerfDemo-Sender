@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE xml>
-
 <?xdevuiml version="1.0"?>
 <?template NONE?>
 <?import com.vaadin.flow.component.button.Button?>
@@ -11,7 +10,7 @@
 <?import com.vaadin.flow.component.orderedlayout.VerticalLayout?>
 <?import com.vaadin.flow.component.textfield.PasswordField?>
 <?import com.vaadin.flow.component.textfield.TextField?>
-<VerticalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="LoginView" justifyContentMode="com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.CENTER" alignItems="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER" defaultHorizontalComponentAlignment="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER">
+<VerticalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="LoginView" justifyContentMode="com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.CENTER" alignItems="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER" defaultHorizontalComponentAlignment="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER" x:route="/login">
     <x:constraints zpos="0" width="100%" height="100%" />
     <VerticalLayout x:name="verticalLayout">
         <x:constraints width="-1px" height="-1px" flex-grow="0.0" />
@@ -20,11 +19,12 @@
             <H3 x:name="h3" text="Login">
                 <x:constraints width="0px" height="0px" />
             </H3>
-            <TextField tabIndex="0" x:name="txtUsername" label="Username">
+            <TextField x:name="txtUsername" label="Username">
                 <x:constraints width="0px" height="0px" />
             </TextField>
-            <PasswordField tabIndex="0" x:name="txtPassword" label="Password">
+            <PasswordField x:name="txtPassword" label="Password">
                 <x:constraints width="0px" height="0px" />
+                <x:event>keyPress.onComponentEvent</x:event>
             </PasswordField>
         </FormLayout>
         <HorizontalLayout x:name="horizontalLayout" defaultVerticalComponentAlignment="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.BASELINE">
@@ -43,4 +43,3 @@
         </HorizontalLayout>
     </VerticalLayout>
 </VerticalLayout>
-
