@@ -2,14 +2,13 @@ package one.microstream.microstream.config.core;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
-
-import org.slf4j.LoggerFactory;
+import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.github.javaparser.utils.Log;
 
 import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.client.ClientBuilder;
@@ -17,6 +16,7 @@ import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import one.microstream.microstream.config.dto.DTOAuthor;
 import one.microstream.microstream.config.dto.DTOBook;
 
 public class BookstoreHttpClient implements AutoCloseable
@@ -54,22 +54,46 @@ public class BookstoreHttpClient implements AutoCloseable
 		);
 	}
 
-	private <T> List<DTOBook> retrieve(final Object dto, final String path, final String method, final Class<T> clazz)
+	@SuppressWarnings("unchecked")
+	public List<DTOAuthor> listAuthors(final int limit)
 	{
-		final var response = request(dto, path, method);
+		return retrieve(
+			null,
+			"/authors",
+			"GET",
+			List.class,
+			Collections.singletonMap("limit", Integer.toString(limit))
+		);
+	}
+
+	private <T> T retrieve(Object dto, String path, String method, Class<T> clazz)
+	{
+		return retrieve(dto, path, method, clazz, Collections.emptyMap());
+	}
+
+	private <T> T retrieve(Object dto, String path, String method, Class<T> clazz, Map<String, String> queryParams)
+	{
+		final var response = request(dto, path, method, queryParams);
 		try
 		{
-			final var entity = response.readEntity(String.class);
-			LoggerFactory.getLogger(getClass()).info("BODY IS={}", entity);
-			return (List<DTOBook>)this.objectMapper.readValue(entity, clazz);
+			return this.objectMapper.readValue(response.readEntity(String.class), clazz);
 		}
 		catch (JsonProcessingException e)
 		{
 			throw new RuntimeException("Failed to parse response", e);
 		}
+		finally
+		{
+			response.close();
+		}
 	}
 
-	private Response request(final Object dto, final String path, final String method)
+	private void request(Object dto, String path, String method)
+	{
+		request(dto, path, method, Collections.emptyMap()).close();
+	}
+
+	private Response request(Object dto, String path, String method, Map<String, String> queryParams)
 	{
 		final Entity<Object> entity;
 		if (dto == null)
@@ -88,10 +112,15 @@ public class BookstoreHttpClient implements AutoCloseable
 			}
 		}
 
-		final Response response = this.rootTarget.path(path).request(MediaType.APPLICATION_JSON).method(method, entity);
+		WebTarget target = this.rootTarget.path(path);
+		for (final var entry : queryParams.entrySet())
+		{
+			target = target.queryParam(entry.getKey(), entry.getValue());
+		}
+		final Response response = target.request(MediaType.APPLICATION_JSON).method(method, entity);
 
 		final int status = response.getStatus();
-		if (status != 200 && status != 404 && status != 500)
+		if (status != 200)
 		{
 			final var body = response.readEntity(String.class);
 			throw new RuntimeException(

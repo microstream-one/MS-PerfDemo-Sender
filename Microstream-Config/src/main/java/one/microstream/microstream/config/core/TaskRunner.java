@@ -5,7 +5,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,7 +17,7 @@ public class TaskRunner
 
 	private final ExecutorService executor;
 	private final HttpTask task;
-	private final Supplier<BookstoreHttpClient> httpClientSupplier;
+	private final BookstoreHttpClient httpClient;
 	private final int threadCount;
 	private final int threadRunCount;
 	private final int delayMs;
@@ -31,12 +30,12 @@ public class TaskRunner
 		final int threadRunCount,
 		final int delayMs,
 		final HttpTask task,
-		final Supplier<BookstoreHttpClient> httpClientSupplier,
+		final BookstoreHttpClient httpClient,
 		final Runnable onTasksFinished
 	)
 	{
 		this.executor = Executors.newFixedThreadPool(threadCount);
-		this.httpClientSupplier = httpClientSupplier;
+		this.httpClient = httpClient;
 		this.threadCount = threadCount;
 		this.threadRunCount = threadRunCount;
 		this.delayMs = delayMs;
@@ -46,7 +45,6 @@ public class TaskRunner
 
 	public void start()
 	{
-		final var httpClient = httpClientSupplier.get();
 		final var finishCount = new AtomicInteger(0);
 
 		for (int i = 0; i < this.threadCount; i++)
@@ -76,7 +74,6 @@ public class TaskRunner
 				if (finishCount.incrementAndGet() == this.threadCount)
 				{
 					LOG.info("All threads are done. Telling the ui...");
-					httpClient.close();
 					this.onTasksFinished.run();
 				}
 			});

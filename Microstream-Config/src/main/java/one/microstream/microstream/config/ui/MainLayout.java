@@ -3,8 +3,9 @@ package one.microstream.microstream.config.ui;
 
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,7 @@ import one.microstream.microstream.config.core.HttpTask;
 import one.microstream.microstream.config.core.MockupData;
 import one.microstream.microstream.config.core.TaskRunner;
 import one.microstream.microstream.config.domain.Action;
+import one.microstream.microstream.config.dto.DTOAuthor;
 
 @RedirectView
 @Route("/")
@@ -52,15 +54,11 @@ public class MainLayout extends VerticalLayout
 	private static final String CLEAR_DATA = "Clear Data";
 
 	private final AtomicInteger finishCount = new AtomicInteger(0);
-
-	private final Supplier<BookstoreHttpClient> pgHttpClientCreator = () -> new BookstoreHttpClient(
-		"http://localhost:8080"
-	);
-	private final Supplier<BookstoreHttpClient> esHttpClientCreator = () -> new BookstoreHttpClient(
-		"http://localhost:8081"
-	);
-
+	private final Random random = new Random();
 	private final MockupData mockup = new MockupData();
+
+	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient("http://localhost:8080");
+	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient("http://localhost:8081");
 
 	private TaskRunner pgTaskRunner;
 	private TaskRunner esTaskRunner;
@@ -94,33 +92,52 @@ public class MainLayout extends VerticalLayout
 		case BOOKS_BY_TITLE:
 		{
 			final HttpTask task = httpClient -> mockup.generateBooks(1)
-				.forEach(b -> httpClient.searchByTitle(b.title()));
-			execute(task, true, true);
+				.forEach(b -> httpClient.searchByTitle("a"));
+			executePostgres(task);
+			executeEclipsestore(task);
 			break;
 		}
 
 		case BOOKS_BY_AUTHOR:
 		{
-			final HttpTask task = httpClient ->
+			final List<String> pgAuthors;
+			try
 			{
-				final var books = httpClient.searchByAuthor(mockup.generateAuthor().mail());
-				//LOG.info("Found books: {}", books);
+				pgAuthors = pgHttpClient.listAuthors(10).stream().map(d ->
+				{
+					System.out.println("Was ist d?");
+					return d.mail();
+				}
+					).toList();
+			}
+			catch (final Exception e)
+			{
+				LOG.error("Failed to receive author list", e);
+				this.btnStop_onClick(null);
+				break;
+			}
+			LOG.info("AUTHORS: {}", pgAuthors);
+			final HttpTask pgTask = httpClient ->
+			{
+				final var randomAuthor = pgAuthors.get(random.nextInt(pgAuthors.size()));
+				LOG.info("Searching author {}", randomAuthor);
+				httpClient.searchByAuthor(randomAuthor);
 			};
-			execute(task, true, true);
+			executePostgres(pgTask);
 			break;
 		}
 
 		case CREATE_PG_DATA:
 		{
 			final HttpTask task = httpClient -> mockup.generateBooks(1).forEach(httpClient::createBook);
-			execute(task, false, true);
+			executePostgres(task);
 			break;
 		}
 
 		case CREATE_ES_DATA:
 		{
 			final HttpTask task = httpClient -> mockup.generateBooks(1).forEach(httpClient::createBook);
-			execute(task, true, false);
+			executeEclipsestore(task);
 			break;
 		}
 
@@ -129,37 +146,24 @@ public class MainLayout extends VerticalLayout
 		}
 	}
 
-	private void execute(HttpTask task, boolean eclipsestore, boolean postgres)
+	private void executeEclipsestore(HttpTask task)
 	{
 		final int threadCount = this.rangeAmountThreads.getValue().intValue();
 		final int delayMs = this.rangeSendDelay.getValue().intValue();
 		final int runCount = this.rangeRunCount.getValue().intValue();
 
-		if (eclipsestore)
-		{
-			this.esTaskRunner = new TaskRunner(
-				threadCount,
-				runCount,
-				delayMs,
-				task,
-				esHttpClientCreator,
-				this::onTasksFinished
-			);
-			this.esTaskRunner.start();
-		}
+		this.esTaskRunner = new TaskRunner(threadCount, runCount, delayMs, task, esHttpClient, this::onTasksFinished);
+		this.esTaskRunner.start();
+	}
 
-		if (postgres)
-		{
-			this.pgTaskRunner = new TaskRunner(
-				threadCount,
-				runCount,
-				delayMs,
-				task,
-				pgHttpClientCreator,
-				this::onTasksFinished
-			);
-			this.pgTaskRunner.start();
-		}
+	private void executePostgres(HttpTask task)
+	{
+		final int threadCount = this.rangeAmountThreads.getValue().intValue();
+		final int delayMs = this.rangeSendDelay.getValue().intValue();
+		final int runCount = this.rangeRunCount.getValue().intValue();
+
+		this.pgTaskRunner = new TaskRunner(threadCount, runCount, delayMs, task, pgHttpClient, this::onTasksFinished);
+		this.pgTaskRunner.start();
 	}
 
 	private void onTasksFinished()
