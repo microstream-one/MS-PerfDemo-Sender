@@ -57,8 +57,8 @@ public class MainLayout extends VerticalLayout
 	private final Random random = new Random();
 	private final MockupData mockup = new MockupData();
 
-	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient("http://localhost:8080");
-	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient("http://localhost:8081");
+	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient("http://postgres-server:8080");
+	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient("http://eclipsestore-server:8080");
 
 	private TaskRunner pgTaskRunner;
 	private TaskRunner esTaskRunner;

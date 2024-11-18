@@ -1,0 +1,93 @@
+version: '3.9'
+services:
+  # The postgres demo REST server
+  postgres-server:
+    image: microstream-postgres-book-demo-server
+    restart: always
+    environment:
+      JDBC_USER: admin
+      JDBC_PASSWORD: admin
+      JDBC_URL: jdbc:postgresql://postgres-db:5432/Bookstore
+      # Enable to let hibernate generate the database schema
+      #HBM2DDL_AUTO: create
+    ports:
+      - 8081:8080
+      
+  # The eclipsestore database and demo REST server
+  eclipsestore-server:
+    image: ms-performancedemo
+    restart: always
+    volumes:
+      - eclipsestore:/storage
+    ports:
+      - 8082:8080
+  
+  # The postgres database server
+  postgres-db:
+    image: postgres
+    restart: always
+    # set shared memory limit when using docker-compose
+    shm_size: 128mb
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+    ports:
+      - 5432:5432
+      
+  # Prometheus exporter for postgres metrics
+  postgres-metrics-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter
+    restart: always
+    environment:
+      DATA_SOURCE_URI: postgres-db:5432/postgres?sslmode=disable
+      DATA_SOURCE_USER: admin
+      DATA_SOURCE_PASS: admin
+    ports:
+      - 9187:9187
+
+  # For allowing container metric export of the postgres database
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    privileged: true
+    ports:
+      - 9328:8080
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+  
+  # Prometheus to gather metrics from the postgres database and demo server as well as the eclipsestore demo server
+  prometheus:
+    image: prom/prometheus
+    restart: always
+    ports:
+      - 9090:9090
+    volumes:
+      - prometheus:/prometheus
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+      
+  # Frontend UI for the prometheus statistics
+  grafana:
+    image: grafana/grafana
+    restart: always
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana:/var/lib/grafana
+  
+  # Calls the endpoints of the postgres and eclipsestore REST servers
+  microstream-performance-demo-caller:
+    image: microstream-performance-demo-caller:latest
+    restart: always
+    ports:
+      - 8080:8080
+
+volumes:
+  postgres:
+  prometheus:
+  eclipsestore:
+  grafana:

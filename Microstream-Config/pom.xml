@@ -47,6 +47,50 @@
 					<pnpmEnable>true</pnpmEnable>
 				</configuration>
 			</plugin>
+			
+			<plugin>
+				<groupId>io.fabric8</groupId>
+				<artifactId>docker-maven-plugin</artifactId>
+				<version>0.43.0</version>
+				<configuration>
+					<images>
+						<image>
+							<name>microstream-performance-demo-caller</name>
+							<build>
+								<dockerFile>Dockerfile</dockerFile>
+								<assemblies>
+									<assembly>
+										<descriptorRef>artifact</descriptorRef>
+									</assembly>
+									<assembly>
+										<name>docker-resources</name>
+										<inline>
+											<fileSets>
+												<fileSet>
+													<directory>${project.basedir}/src/main/docker</directory>
+													<outputDirectory>.</outputDirectory>
+												</fileSet>
+											</fileSets>
+										</inline>
+									</assembly>
+								</assemblies>
+								<tags>
+									<tag>latest</tag>
+									<tag>${project.version}</tag>
+								</tags>
+							</build>
+						</image>
+					</images>
+				</configuration>
+				<executions>
+					<execution>
+						<id>docker-build</id>
+						<goals>
+							<goal>build</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 	<repositories>
