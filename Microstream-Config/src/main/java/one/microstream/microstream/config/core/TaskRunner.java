@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,30 +17,23 @@ public class TaskRunner
 	private static final Logger LOG = LoggerFactory.getLogger(TaskRunner.class);
 
 	private final ExecutorService executor;
-	private final HttpTask task;
-	private final BookstoreHttpClient httpClient;
-	private final int threadCount;
-	private final int threadRunCount;
+	private final int runCount;
 	private final int delayMs;
+	private final Supplier<Runnable> taskGenerator;
 	private final Runnable onTasksFinished;
-
-	private volatile boolean isRunning = true;
 
 	public TaskRunner(
 		final int threadCount,
-		final int threadRunCount,
+		final int runCount,
 		final int delayMs,
-		final HttpTask task,
-		final BookstoreHttpClient httpClient,
+		final Supplier<Runnable> taskGenerator,
 		final Runnable onTasksFinished
 	)
 	{
 		this.executor = Executors.newFixedThreadPool(threadCount);
-		this.httpClient = httpClient;
-		this.threadCount = threadCount;
-		this.threadRunCount = threadRunCount;
+		this.runCount = runCount;
 		this.delayMs = delayMs;
-		this.task = task;
+		this.taskGenerator = taskGenerator;
 		this.onTasksFinished = onTasksFinished;
 	}
 
@@ -47,33 +41,31 @@ public class TaskRunner
 	{
 		final var finishCount = new AtomicInteger(0);
 
-		for (int i = 0; i < this.threadCount; i++)
+		for (int i = 0; i < this.runCount; i++)
 		{
 			final int number = i;
+			final Runnable task = this.taskGenerator.get();
 			this.executor.execute(() ->
 			{
-				LOG.info("Starting thread {}", number);
+				LOG.trace("Executing run {}", number);
 
 				try
 				{
-					for (int j = 0; j < this.threadRunCount && this.isRunning; j++)
+					task.run();
+					if (this.delayMs > 0)
 					{
-						this.task.run(httpClient);
-						if (this.delayMs > 0)
-						{
-							ThreadUtils.trySleep(this.delayMs);
-						}
+						ThreadUtils.trySleep(this.delayMs);
 					}
 				}
 				catch (final Exception e)
 				{
-					LOG.error("Thread {} failed executing task", number, e);
+					LOG.error("Run {} failed executing task", number, e);
 				}
 
-				LOG.info("Thread {} done", number);
-				if (finishCount.incrementAndGet() == this.threadCount)
+				LOG.trace("Run {} done", number);
+				if (finishCount.incrementAndGet() == this.runCount)
 				{
-					LOG.info("All threads are done. Telling the ui...");
+					LOG.info("All task runs completed");
 					this.onTasksFinished.run();
 				}
 			});
@@ -82,7 +74,11 @@ public class TaskRunner
 
 	public void stop()
 	{
-		this.executor.shutdown();
+		final int skipped = this.executor.shutdownNow().size();
+		if (skipped > 0)
+		{
+			LOG.info("Skipped execution of {} tasks", skipped);
+		}
 	}
 
 	public void waitForTasks()

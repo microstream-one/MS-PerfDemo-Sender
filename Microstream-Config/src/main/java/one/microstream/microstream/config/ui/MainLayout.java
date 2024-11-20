@@ -5,7 +5,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Set;
+import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,12 +14,14 @@ import org.slf4j.LoggerFactory;
 import com.rapidclipse.framework.server.resources.CaptionUtils;
 import com.rapidclipse.framework.server.security.authentication.RedirectView;
 import com.rapidclipse.framework.server.ui.ItemLabelGeneratorFactory;
+import com.vaadin.flow.component.AbstractField.ComponentValueChangeEvent;
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.ComponentEvent;
 import com.vaadin.flow.component.ComponentEventListener;
-import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.HasValue;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
@@ -35,7 +38,6 @@ import com.vaadin.flow.data.renderer.TextRenderer;
 import com.vaadin.flow.router.Route;
 
 import one.microstream.microstream.config.core.BookstoreHttpClient;
-import one.microstream.microstream.config.core.HttpTask;
 import one.microstream.microstream.config.core.MockupData;
 import one.microstream.microstream.config.core.TaskRunner;
 import one.microstream.microstream.config.domain.Action;
@@ -49,153 +51,167 @@ public class MainLayout extends VerticalLayout
 
 	private static final String BOOKS_BY_TITLE = "Books by Title";
 	private static final String BOOKS_BY_AUTHOR = "Books by Author";
-	private static final String CREATE_ES_DATA = "Generate EclipseStore Data";
-	private static final String CREATE_PG_DATA = "Generate Postgres Data";
+	private static final String CREATE_DATA = "Generate Data";
 	private static final String CLEAR_DATA = "Clear Data";
+	private static final String ECLIPSESTORE = "EclipseStore";
+	private static final String POSTGRES = "Postgres";
 
-	private final AtomicInteger finishCount = new AtomicInteger(0);
 	private final Random random = new Random();
 	private final MockupData mockup = new MockupData();
 
-	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient("http://postgres-server:8080");
-	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient("http://eclipsestore-server:8080");
+	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient("http://localhost:8081");
+	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient("http://localhost:8082");
 
-	private TaskRunner pgTaskRunner;
-	private TaskRunner esTaskRunner;
-
-	private UI ui;
+	private TaskRunner taskRunner;
+	/**
+	 * Used to toggle between using the postgres and eclipsestore http client
+	 */
+	private boolean httpClientToggle;
 
 	public MainLayout()
 	{
 		super();
 		this.initUI();
+		this.radioButtonGroup.setItems(CREATE_DATA, BOOKS_BY_TITLE, BOOKS_BY_AUTHOR, CLEAR_DATA);
+		this.radioButtonGroup.setValue(CREATE_DATA);
+		this.cmbTargets.setItems(ECLIPSESTORE, POSTGRES);
+		this.cmbTargets.select(ECLIPSESTORE, POSTGRES);
+	}
 
-		this.radioButtonGroup.setItems(CREATE_ES_DATA, CREATE_PG_DATA, BOOKS_BY_TITLE, BOOKS_BY_AUTHOR, CLEAR_DATA);
-		this.radioButtonGroup.setValue(CREATE_ES_DATA);
+	private BookstoreHttpClient nextHttpClient()
+	{
+		final Set<String> targets = this.cmbTargets.getSelectedItems();
+		if (targets.size() == 2)
+		{
+			// If both are selected, switch between both on each call
+			this.httpClientToggle = !this.httpClientToggle;
+			if (this.httpClientToggle)
+			{
+				return this.pgHttpClient;
+			}
+			else
+			{
+				return this.esHttpClient;
+			}
+		}
+
+		return targets.stream().findFirst().map(target ->
+		{
+			switch (target)
+			{
+			case ECLIPSESTORE:
+				return this.esHttpClient;
+			case POSTGRES:
+				return this.pgHttpClient;
+			default:
+				throw new IllegalArgumentException("Unknown target type: " + target);
+			}
+		}).orElseThrow(() -> new RuntimeException("Target type is empty"));
 	}
 
 	/**
-	 * Event handler delegate method for the {@link Button} {@link #btnTask}.
+	 * Event handler delegate method for the {@link Button} {@link #btnStart}.
 	 *
 	 * @see ComponentEventListener#onComponentEvent(ComponentEvent)
 	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
 	 */
-	private void btnTask_onClick(final ClickEvent<Button> event)
+	private void btnStart_onClick(final ClickEvent<Button> event)
 	{
-		this.btnTask.setEnabled(false);
+		this.btnStart.setEnabled(false);
 		this.btnStop.setEnabled(true);
 
-		this.ui = UI.getCurrent();
+		// Calling tasks alternate calling from postgres and eclipsestore
+		final Supplier<Runnable> taskGenerator = switch (this.radioButtonGroup.getValue())
+		{
+		case BOOKS_BY_TITLE -> () ->
+		{
+			final var httpClient = nextHttpClient();
+			return () -> mockup.generateBooks(1).forEach(b -> httpClient.searchByTitle("a"));
+		};
+		case BOOKS_BY_AUTHOR -> new Supplier<>()
+		{
+			private final List<String> pgAuthors = pgHttpClient.listAuthors(10).stream().map(DTOAuthor::mail).toList();
+			private final List<String> esAuthors = esHttpClient.listAuthors(10).stream().map(DTOAuthor::mail).toList();
 
-		switch (this.radioButtonGroup.getValue())
-		{
-		case BOOKS_BY_TITLE:
-		{
-			final HttpTask task = httpClient -> mockup.generateBooks(1)
-				.forEach(b -> httpClient.searchByTitle("a"));
-			executePostgres(task);
-			executeEclipsestore(task);
-			break;
-		}
-
-		case BOOKS_BY_AUTHOR:
-		{
-			final List<String> pgAuthors;
-			try
 			{
-				pgAuthors = pgHttpClient.listAuthors(10).stream().map(d ->
+				LOG.info("Creating the generator");
+			}
+
+			@Override
+			public Runnable get()
+			{
+				LOG.info("Calling get on generator");
+				boolean callEs;
+
+				final Set<String> targets = cmbTargets.getValue();
+				if (targets.size() == 2)
 				{
-					System.out.println("Was ist d?");
-					return d.mail();
+					httpClientToggle = !httpClientToggle;
+					callEs = httpClientToggle;
 				}
-					).toList();
+				else
+				{
+					callEs = targets.contains(ECLIPSESTORE);
+				}
+
+				return () ->
+				{
+					LOG.info("Calling run on task");
+					final BookstoreHttpClient client;
+					final List<String> authors;
+
+					if (callEs)
+					{
+						client = esHttpClient;
+						authors = esAuthors;
+					}
+					else
+					{
+						client = pgHttpClient;
+						authors = pgAuthors;
+					}
+
+					final var randomAuthor = authors.get(random.nextInt(pgAuthors.size()));
+					LOG.info("Searching author {}", randomAuthor);
+					client.searchByAuthor(randomAuthor);
+				};
 			}
-			catch (final Exception e)
-			{
-				LOG.error("Failed to receive author list", e);
-				this.btnStop_onClick(null);
-				break;
-			}
-			LOG.info("AUTHORS: {}", pgAuthors);
-			final HttpTask pgTask = httpClient ->
-			{
-				final var randomAuthor = pgAuthors.get(random.nextInt(pgAuthors.size()));
-				LOG.info("Searching author {}", randomAuthor);
-				httpClient.searchByAuthor(randomAuthor);
-			};
-			executePostgres(pgTask);
-			break;
-		}
-
-		case CREATE_PG_DATA:
+		};
+		case CREATE_DATA -> () ->
 		{
-			final HttpTask task = httpClient -> mockup.generateBooks(1).forEach(httpClient::createBook);
-			executePostgres(task);
-			break;
-		}
+			final var httpClient = nextHttpClient();
+			return () -> mockup.generateBooks(1).forEach(httpClient::createBook);
+		};
+		default -> throw new RuntimeException("Encountered unexpected task name");
+		};
 
-		case CREATE_ES_DATA:
-		{
-			final HttpTask task = httpClient -> mockup.generateBooks(1).forEach(httpClient::createBook);
-			executeEclipsestore(task);
-			break;
-		}
-
-		default:
-			throw new RuntimeException("Encountered unexpected task name");
-		}
+		executeTask(taskGenerator);
 	}
 
-	private void executeEclipsestore(HttpTask task)
+	private void executeTask(Supplier<Runnable> taskGenerator)
 	{
 		final int threadCount = this.rangeAmountThreads.getValue().intValue();
 		final int delayMs = this.rangeSendDelay.getValue().intValue();
 		final int runCount = this.rangeRunCount.getValue().intValue();
 
-		this.esTaskRunner = new TaskRunner(threadCount, runCount, delayMs, task, esHttpClient, this::onTasksFinished);
-		this.esTaskRunner.start();
-	}
-
-	private void executePostgres(HttpTask task)
-	{
-		final int threadCount = this.rangeAmountThreads.getValue().intValue();
-		final int delayMs = this.rangeSendDelay.getValue().intValue();
-		final int runCount = this.rangeRunCount.getValue().intValue();
-
-		this.pgTaskRunner = new TaskRunner(threadCount, runCount, delayMs, task, pgHttpClient, this::onTasksFinished);
-		this.pgTaskRunner.start();
+		this.taskRunner = new TaskRunner(threadCount, runCount, delayMs, taskGenerator, this::onTasksFinished);
+		this.taskRunner.start();
 	}
 
 	private void onTasksFinished()
 	{
-		int runningExecutorsCount = 0;
-		if (this.pgTaskRunner != null)
+		// Needs to be a new thread as this is called inside a task thread
+		new Thread(() ->
 		{
-			++runningExecutorsCount;
-		}
-		if (this.esTaskRunner != null)
-		{
-			++runningExecutorsCount;
-		}
-
-		if (this.finishCount.incrementAndGet() == runningExecutorsCount)
-		{
-			// Needs to be a new thread as this is called inside a task thread
-			new Thread(() ->
+			try
 			{
-				try
-				{
-					this.ui.access(() ->
-					{
-						this.btnStop_onClick(null);
-					});
-				}
-				catch (final Exception e)
-				{
-					LOG.error("Failed to update ui", e);
-				}
-			}).start();
-		}
+				this.getUI().ifPresent(ui -> ui.access(() -> this.btnStop_onClick(null)));
+			}
+			catch (final Exception e)
+			{
+				LOG.error("Failed to update ui", e);
+			}
+		}).start();
 	}
 
 	/**
@@ -206,25 +222,30 @@ public class MainLayout extends VerticalLayout
 	 */
 	private void btnStop_onClick(final ClickEvent<Button> unused)
 	{
-		if (this.esTaskRunner != null)
+		if (this.taskRunner != null)
 		{
-			this.esTaskRunner.stop();
-			this.esTaskRunner.waitForTasks();
+			this.taskRunner.stop();
+			this.taskRunner.waitForTasks();
 		}
 
-		if (this.pgTaskRunner != null)
-		{
-			this.pgTaskRunner.stop();
-			this.pgTaskRunner.waitForTasks();
-		}
+		this.taskRunner = null;
 
-		this.esTaskRunner = null;
-		this.pgTaskRunner = null;
-
-		this.finishCount.set(0);
-
-		this.btnTask.setEnabled(true);
+		this.btnStart.setEnabled(!this.cmbTargets.getValue().isEmpty());
 		this.btnStop.setEnabled(false);
+	}
+
+	/**
+	 * Event handler delegate method for the {@link MultiSelectComboBox}
+	 * {@link #cmbTargets}.
+	 *
+	 * @see HasValue.ValueChangeListener#valueChanged(HasValue.ValueChangeEvent)
+	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
+	 */
+	private void cmbTargets_valueChanged(
+		final ComponentValueChangeEvent<MultiSelectComboBox<String>, Set<String>> event
+	)
+	{
+		this.btnStart.setEnabled(!event.getValue().isEmpty());
 	}
 
 	/*
@@ -237,10 +258,11 @@ public class MainLayout extends VerticalLayout
 		this.div = new Div();
 		this.horizontalLayout = new HorizontalLayout();
 		this.verticalLayout = new VerticalLayout();
-		this.btnTask = new Button();
+		this.btnStart = new Button();
 		this.btnStop = new Button();
 		this.hr = new Hr();
 		this.radioButtonGroup = new RadioButtonGroup<>();
+		this.cmbTargets = new MultiSelectComboBox<>();
 		this.hr2 = new Hr();
 		this.nativeLabel4 = new NativeLabel();
 		this.rangeAmountThreads = new NumberField();
@@ -253,9 +275,9 @@ public class MainLayout extends VerticalLayout
 
 		this.verticalLayout.setSpacing(false);
 		this.verticalLayout.setPadding(false);
-		this.btnTask.setText("Tasks");
-		this.btnTask.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-		this.btnTask.setIcon(VaadinIcon.PLAY.create());
+		this.btnStart.setText("Start");
+		this.btnStart.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+		this.btnStart.setIcon(VaadinIcon.PLAY.create());
 		this.btnStop.setEnabled(false);
 		this.btnStop.setText("Stop");
 		this.btnStop.addThemeVariants(ButtonVariant.LUMO_ERROR);
@@ -264,6 +286,8 @@ public class MainLayout extends VerticalLayout
 			new TextRenderer<>(ItemLabelGeneratorFactory.NonNull(CaptionUtils::resolveCaption))
 		);
 		this.radioButtonGroup.addThemeName("vertical");
+		this.cmbTargets.setLabel("Task Targets");
+		this.cmbTargets.setItemLabelGenerator(ItemLabelGeneratorFactory.NonNull(CaptionUtils::resolveCaption));
 		this.nativeLabel4.setText("Amount Threads");
 		this.rangeAmountThreads.setValue(1.0);
 		this.nativeLabel2.setText("Run Count");
@@ -285,12 +309,14 @@ public class MainLayout extends VerticalLayout
 			.setAutoWidth(true);
 		this.grid.setSelectionMode(Grid.SelectionMode.SINGLE);
 
-		this.btnTask.setWidthFull();
-		this.btnTask.setHeight(null);
+		this.btnStart.setWidthFull();
+		this.btnStart.setHeight(null);
 		this.btnStop.setWidthFull();
 		this.btnStop.setHeight(null);
 		this.hr.setSizeUndefined();
 		this.radioButtonGroup.setSizeUndefined();
+		this.cmbTargets.setWidthFull();
+		this.cmbTargets.setHeight(null);
 		this.hr2.setSizeUndefined();
 		this.nativeLabel4.setSizeUndefined();
 		this.rangeAmountThreads.setWidthFull();
@@ -303,10 +329,11 @@ public class MainLayout extends VerticalLayout
 		this.rangeSendDelay.setHeight(null);
 		this.hr3.setSizeUndefined();
 		this.verticalLayout.add(
-			this.btnTask,
+			this.btnStart,
 			this.btnStop,
 			this.hr,
 			this.radioButtonGroup,
+			this.cmbTargets,
 			this.hr2,
 			this.nativeLabel4,
 			this.rangeAmountThreads,
@@ -318,9 +345,9 @@ public class MainLayout extends VerticalLayout
 		);
 		this.verticalLayout.setWidth("300px");
 		this.verticalLayout.setHeightFull();
-		this.grid.setSizeFull();
+		this.grid.setWidth(null);
+		this.grid.setHeightFull();
 		this.horizontalLayout.add(this.verticalLayout, this.grid);
-		this.horizontalLayout.setFlexGrow(1.0, this.grid);
 		this.horizontalLayout.setSizeFull();
 		this.div.add(this.horizontalLayout);
 		this.div.setWidth("90%");
@@ -329,13 +356,14 @@ public class MainLayout extends VerticalLayout
 		this.setHorizontalComponentAlignment(FlexComponent.Alignment.CENTER, this.div);
 		this.setSizeFull();
 
-		this.btnTask.addClickListener(this::btnTask_onClick);
+		this.btnStart.addClickListener(this::btnStart_onClick);
 		this.btnStop.addClickListener(this::btnStop_onClick);
+		this.cmbTargets.addValueChangeListener(this::cmbTargets_valueChanged);
 	} // </generated-code>
 
 	// <generated-code name="variables">
 	private NativeLabel nativeLabel4, nativeLabel2, nativeLabel3;
-	private Button btnTask, btnStop;
+	private Button btnStart, btnStop;
 	private Grid<Action> grid;
 	private NumberField rangeAmountThreads, rangeRunCount, rangeSendDelay;
 	private HorizontalLayout horizontalLayout;
@@ -343,6 +371,7 @@ public class MainLayout extends VerticalLayout
 	private Div div;
 	private Hr hr, hr2, hr3;
 	private RadioButtonGroup<String> radioButtonGroup;
+	private MultiSelectComboBox<String> cmbTargets;
 	// </generated-code>
 
 }
