@@ -36,6 +36,16 @@ public class BookstoreHttpClient implements AutoCloseable
 	{
 		request(book, "/books", "PUT");
 	}
+	
+	public void createBookBatched(final List<DTOBook> books)
+	{
+		request(books, "/books/batch", "PUT");
+	}
+	
+	public void clearBooks()
+	{
+		request(null, "/books", "DELETE");
+	}
 
 	@SuppressWarnings("unchecked")
 	public List<DTOBook> searchByTitle(final String title)

@@ -1,6 +1,7 @@
 
 package one.microstream.microstream.config.ui;
 
+import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
 import com.rapidclipse.framework.server.resources.CaptionUtils;
 import com.rapidclipse.framework.server.security.authentication.RedirectView;
 import com.rapidclipse.framework.server.ui.ItemLabelGeneratorFactory;
@@ -26,7 +28,6 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Hr;
-import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -38,10 +39,12 @@ import com.vaadin.flow.data.renderer.TextRenderer;
 import com.vaadin.flow.router.Route;
 
 import one.microstream.microstream.config.core.BookstoreHttpClient;
+import one.microstream.microstream.config.core.Executable;
 import one.microstream.microstream.config.core.MockupData;
 import one.microstream.microstream.config.core.TaskRunner;
 import one.microstream.microstream.config.domain.Action;
 import one.microstream.microstream.config.dto.DTOAuthor;
+import one.microstream.microstream.config.dto.DTOBook;
 
 @RedirectView
 @Route("/")
@@ -49,15 +52,15 @@ public class MainLayout extends VerticalLayout
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MainLayout.class);
 
-	private static final String BOOKS_BY_TITLE = "Books by Title";
-	private static final String BOOKS_BY_AUTHOR = "Books by Author";
+	private static final String BOOKS_BY_TITLE = "Books by Random Title Search";
+	private static final String BOOKS_BY_ISBN = "Books by Random ISBNs";
 	private static final String CREATE_DATA = "Generate Data";
 	private static final String CLEAR_DATA = "Clear Data";
 	private static final String ECLIPSESTORE = "EclipseStore";
 	private static final String POSTGRES = "Postgres";
 
 	private final Random random = new Random();
-	private final MockupData mockup = new MockupData();
+	private final List<DTOBook> books;
 
 	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient("http://localhost:8081");
 	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient("http://localhost:8082");
@@ -68,14 +71,16 @@ public class MainLayout extends VerticalLayout
 	 */
 	private boolean httpClientToggle;
 
-	public MainLayout()
+	public MainLayout() throws IOException
 	{
 		super();
 		this.initUI();
-		this.radioButtonGroup.setItems(CREATE_DATA, BOOKS_BY_TITLE, BOOKS_BY_AUTHOR, CLEAR_DATA);
+		this.radioButtonGroup.setItems(CREATE_DATA, BOOKS_BY_TITLE, BOOKS_BY_ISBN, CLEAR_DATA);
 		this.radioButtonGroup.setValue(CREATE_DATA);
 		this.cmbTargets.setItems(ECLIPSESTORE, POSTGRES);
 		this.cmbTargets.select(ECLIPSESTORE, POSTGRES);
+
+		this.books = MockupData.loadData();
 	}
 
 	private BookstoreHttpClient nextHttpClient()
@@ -121,14 +126,21 @@ public class MainLayout extends VerticalLayout
 		this.btnStop.setEnabled(true);
 
 		// Calling tasks alternate calling from postgres and eclipsestore
-		final Supplier<Runnable> taskGenerator = switch (this.radioButtonGroup.getValue())
+		final Supplier<Executable> taskGenerator = switch (this.radioButtonGroup.getValue())
 		{
-		case BOOKS_BY_TITLE -> () ->
+		case BOOKS_BY_TITLE -> new Supplier<>()
 		{
-			final var httpClient = nextHttpClient();
-			return () -> mockup.generateBooks(1).forEach(b -> httpClient.searchByTitle("a"));
+			private final Random seededRandom = new Random(rangeRandomSeed.getValue().longValue());
+
+			@Override
+			public Executable get()
+			{
+				final String search = Character.toString((char)seededRandom.nextInt('a', 'z' + 1));
+				final var httpClient = nextHttpClient();
+				return () -> httpClient.searchByTitle(search);
+			}
 		};
-		case BOOKS_BY_AUTHOR -> new Supplier<>()
+		case BOOKS_BY_ISBN -> new Supplier<>()
 		{
 			private final List<String> pgAuthors = pgHttpClient.listAuthors(10).stream().map(DTOAuthor::mail).toList();
 			private final List<String> esAuthors = esHttpClient.listAuthors(10).stream().map(DTOAuthor::mail).toList();
@@ -138,7 +150,7 @@ public class MainLayout extends VerticalLayout
 			}
 
 			@Override
-			public Runnable get()
+			public Executable get()
 			{
 				LOG.info("Calling get on generator");
 				boolean callEs;
@@ -180,7 +192,23 @@ public class MainLayout extends VerticalLayout
 		case CREATE_DATA -> () ->
 		{
 			final var httpClient = nextHttpClient();
-			return () -> mockup.generateBooks(1).forEach(httpClient::createBook);
+			return () ->
+			{
+				for (List<DTOBook> batch : Lists.partition(books, 1_000))
+				{
+					httpClient.createBookBatched(batch);
+
+					if (Thread.interrupted())
+					{
+						throw new InterruptedException();
+					}
+				}
+			};
+		};
+		case CLEAR_DATA -> () ->
+		{
+			final var httpClient = nextHttpClient();
+			return httpClient::clearBooks;
 		};
 		default -> throw new RuntimeException("Encountered unexpected task name");
 		};
@@ -188,7 +216,7 @@ public class MainLayout extends VerticalLayout
 		executeTask(taskGenerator);
 	}
 
-	private void executeTask(Supplier<Runnable> taskGenerator)
+	private void executeTask(Supplier<Executable> taskGenerator)
 	{
 		final int threadCount = this.rangeAmountThreads.getValue().intValue();
 		final int delayMs = this.rangeSendDelay.getValue().intValue();
@@ -264,13 +292,11 @@ public class MainLayout extends VerticalLayout
 		this.radioButtonGroup = new RadioButtonGroup<>();
 		this.cmbTargets = new MultiSelectComboBox<>();
 		this.hr2 = new Hr();
-		this.nativeLabel4 = new NativeLabel();
 		this.rangeAmountThreads = new NumberField();
-		this.nativeLabel2 = new NativeLabel();
 		this.rangeRunCount = new NumberField();
-		this.nativeLabel3 = new NativeLabel();
 		this.rangeSendDelay = new NumberField();
 		this.hr3 = new Hr();
+		this.rangeRandomSeed = new NumberField();
 		this.grid = new Grid<>(Action.class, false);
 
 		this.verticalLayout.setSpacing(false);
@@ -286,14 +312,17 @@ public class MainLayout extends VerticalLayout
 			new TextRenderer<>(ItemLabelGeneratorFactory.NonNull(CaptionUtils::resolveCaption))
 		);
 		this.radioButtonGroup.addThemeName("vertical");
+		this.cmbTargets.setAutoExpand(MultiSelectComboBox.AutoExpandMode.BOTH);
 		this.cmbTargets.setLabel("Task Targets");
 		this.cmbTargets.setItemLabelGenerator(ItemLabelGeneratorFactory.NonNull(CaptionUtils::resolveCaption));
-		this.nativeLabel4.setText("Amount Threads");
 		this.rangeAmountThreads.setValue(1.0);
-		this.nativeLabel2.setText("Run Count");
+		this.rangeAmountThreads.setLabel("Amount Threads");
 		this.rangeRunCount.setValue(1.0);
-		this.nativeLabel3.setText("Send delay (ms)");
+		this.rangeRunCount.setLabel("Run Count");
 		this.rangeSendDelay.setValue(0.0);
+		this.rangeSendDelay.setLabel("Send Delay (ms)");
+		this.rangeRandomSeed.setValue(123456.0);
+		this.rangeRandomSeed.setLabel("Random Seed");
 		this.grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 		this.grid.addColumn(
 			new LocalDateTimeRenderer<>(
@@ -318,16 +347,15 @@ public class MainLayout extends VerticalLayout
 		this.cmbTargets.setWidthFull();
 		this.cmbTargets.setHeight(null);
 		this.hr2.setSizeUndefined();
-		this.nativeLabel4.setSizeUndefined();
 		this.rangeAmountThreads.setWidthFull();
 		this.rangeAmountThreads.setHeight(null);
-		this.nativeLabel2.setSizeUndefined();
 		this.rangeRunCount.setWidthFull();
 		this.rangeRunCount.setHeight(null);
-		this.nativeLabel3.setSizeUndefined();
 		this.rangeSendDelay.setWidthFull();
 		this.rangeSendDelay.setHeight(null);
 		this.hr3.setSizeUndefined();
+		this.rangeRandomSeed.setWidthFull();
+		this.rangeRandomSeed.setHeight(null);
 		this.verticalLayout.add(
 			this.btnStart,
 			this.btnStop,
@@ -335,13 +363,11 @@ public class MainLayout extends VerticalLayout
 			this.radioButtonGroup,
 			this.cmbTargets,
 			this.hr2,
-			this.nativeLabel4,
 			this.rangeAmountThreads,
-			this.nativeLabel2,
 			this.rangeRunCount,
-			this.nativeLabel3,
 			this.rangeSendDelay,
-			this.hr3
+			this.hr3,
+			this.rangeRandomSeed
 		);
 		this.verticalLayout.setWidth("300px");
 		this.verticalLayout.setHeightFull();
@@ -362,10 +388,9 @@ public class MainLayout extends VerticalLayout
 	} // </generated-code>
 
 	// <generated-code name="variables">
-	private NativeLabel nativeLabel4, nativeLabel2, nativeLabel3;
 	private Button btnStart, btnStop;
 	private Grid<Action> grid;
-	private NumberField rangeAmountThreads, rangeRunCount, rangeSendDelay;
+	private NumberField rangeAmountThreads, rangeRunCount, rangeSendDelay, rangeRandomSeed;
 	private HorizontalLayout horizontalLayout;
 	private VerticalLayout verticalLayout;
 	private Div div;

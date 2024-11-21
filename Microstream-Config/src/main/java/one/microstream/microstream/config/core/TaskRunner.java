@@ -19,14 +19,14 @@ public class TaskRunner
 	private final ExecutorService executor;
 	private final int runCount;
 	private final int delayMs;
-	private final Supplier<Runnable> taskGenerator;
+	private final Supplier<Executable> taskGenerator;
 	private final Runnable onTasksFinished;
 
 	public TaskRunner(
 		final int threadCount,
 		final int runCount,
 		final int delayMs,
-		final Supplier<Runnable> taskGenerator,
+		final Supplier<Executable> taskGenerator,
 		final Runnable onTasksFinished
 	)
 	{
@@ -44,14 +44,14 @@ public class TaskRunner
 		for (int i = 0; i < this.runCount; i++)
 		{
 			final int number = i;
-			final Runnable task = this.taskGenerator.get();
+			final Executable task = this.taskGenerator.get();
 			this.executor.execute(() ->
 			{
 				LOG.trace("Executing run {}", number);
 
 				try
 				{
-					task.run();
+					task.executable();
 					if (this.delayMs > 0)
 					{
 						ThreadUtils.trySleep(this.delayMs);
