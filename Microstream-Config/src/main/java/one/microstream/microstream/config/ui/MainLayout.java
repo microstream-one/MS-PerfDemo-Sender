@@ -2,10 +2,11 @@
 package one.microstream.microstream.config.ui;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.List;
-import java.util.Random;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
@@ -23,7 +24,9 @@ import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.HasValue;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
@@ -33,6 +36,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
+import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.data.renderer.LocalDateTimeRenderer;
 import com.vaadin.flow.data.renderer.TextRenderer;
@@ -42,8 +46,11 @@ import one.microstream.microstream.config.core.BookstoreHttpClient;
 import one.microstream.microstream.config.core.Executable;
 import one.microstream.microstream.config.core.MockupData;
 import one.microstream.microstream.config.core.TaskRunner;
+import one.microstream.microstream.config.core.task.AdminClearBooksTask;
+import one.microstream.microstream.config.core.task.AdminCreateBooksTask;
+import one.microstream.microstream.config.core.task.BookByIsbnTask;
+import one.microstream.microstream.config.core.task.BooksByTitleTask;
 import one.microstream.microstream.config.domain.Action;
-import one.microstream.microstream.config.dto.DTOAuthor;
 import one.microstream.microstream.config.dto.DTOBook;
 
 @RedirectView
@@ -59,59 +66,33 @@ public class MainLayout extends VerticalLayout
 	private static final String ECLIPSESTORE = "EclipseStore";
 	private static final String POSTGRES = "Postgres";
 
-	private final Random random = new Random();
-	private final List<DTOBook> books;
+	private static List<DTOBook> books;
 
-	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient("http://localhost:8081");
-	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient("http://localhost:8082");
+	private final BookstoreHttpClient pgHttpClient = new BookstoreHttpClient(
+		Optional.ofNullable(System.getenv("POSTGRES_URL")).orElse("http://localhost:8081")
+	);
+	private final BookstoreHttpClient esHttpClient = new BookstoreHttpClient(
+		Optional.ofNullable(System.getenv("ECLIPSESTORE_URL")).orElse("http://localhost:8082")
+	);
 
 	private TaskRunner taskRunner;
-	/**
-	 * Used to toggle between using the postgres and eclipsestore http client
-	 */
-	private boolean httpClientToggle;
 
-	public MainLayout() throws IOException
+	public MainLayout()
 	{
 		super();
 		this.initUI();
-		this.radioButtonGroup.setItems(CREATE_DATA, BOOKS_BY_TITLE, BOOKS_BY_ISBN, CLEAR_DATA);
-		this.radioButtonGroup.setValue(CREATE_DATA);
+
+		this.radioButtonGroup.setItems(BOOKS_BY_TITLE, BOOKS_BY_ISBN);
+		this.radioButtonGroup.setValue(BOOKS_BY_TITLE);
 		this.cmbTargets.setItems(ECLIPSESTORE, POSTGRES);
 		this.cmbTargets.select(ECLIPSESTORE, POSTGRES);
 
-		this.books = MockupData.loadData();
+		this.btnAdminLoadData.setEnabled(Files.exists(MockupData.MOCKUP_DATA_PATH));
 	}
 
-	private BookstoreHttpClient nextHttpClient()
+	private boolean dataLoaded()
 	{
-		final Set<String> targets = this.cmbTargets.getSelectedItems();
-		if (targets.size() == 2)
-		{
-			// If both are selected, switch between both on each call
-			this.httpClientToggle = !this.httpClientToggle;
-			if (this.httpClientToggle)
-			{
-				return this.pgHttpClient;
-			}
-			else
-			{
-				return this.esHttpClient;
-			}
-		}
-
-		return targets.stream().findFirst().map(target ->
-		{
-			switch (target)
-			{
-			case ECLIPSESTORE:
-				return this.esHttpClient;
-			case POSTGRES:
-				return this.pgHttpClient;
-			default:
-				throw new IllegalArgumentException("Unknown target type: " + target);
-			}
-		}).orElseThrow(() -> new RuntimeException("Target type is empty"));
+		return books != null;
 	}
 
 	/**
@@ -122,107 +103,126 @@ public class MainLayout extends VerticalLayout
 	 */
 	private void btnStart_onClick(final ClickEvent<Button> event)
 	{
+		if (!dataLoaded())
+		{
+			new Dialog("No data loaded/generated").open();
+			return;
+		}
+
+		final Set<String> targets = this.cmbTargets.getSelectedItems();
+		Supplier<Executable> generator = switch (targets.size())
+		{
+		case 1 ->
+		{
+			final var task = createTask(targets.contains(ECLIPSESTORE) ? esHttpClient : pgHttpClient);
+			yield () -> task;
+		}
+		case 2 -> new Supplier<Executable>()
+		{
+			private final Executable pgTask = createTask(pgHttpClient);
+			private final Executable esTask = createTask(esHttpClient);
+
+			// Toggle between using the postgres and eclipsestore http client
+			private boolean toggle = false;
+
+			@Override
+			public Executable get()
+			{
+				toggle = !toggle;
+				return toggle ? pgTask : esTask;
+			}
+		};
+		default -> throw new RuntimeException("Unexpected amount of targets");
+		};
+
+		executeTask(generator);
+	}
+
+	private Executable createTask(BookstoreHttpClient client)
+	{
+		final long seed = this.rangeRandomSeed.getValue().longValue();
+
+		// Calling tasks alternate calling from postgres and eclipsestore
+		return switch (this.radioButtonGroup.getValue())
+		{
+		case BOOKS_BY_TITLE -> new BooksByTitleTask(seed, client);
+		case BOOKS_BY_ISBN -> new BookByIsbnTask(seed, client, books);
+		// TODO: Specification missing for what dataset this function should modify
+		//		case CREATE_DATA -> Arrays.asList(
+		//			new CreateBookTask(seed, esHttpClient),
+		//			new CreateBookTask(seed, pgHttpClient)
+		//		);
+		// TODO: Specification missing for what dataset this function should modify
+		//		case CLEAR_DATA -> () ->
+		//		{
+		//			final var httpClient = nextHttpClient();
+		//			return httpClient::clearBooks;
+		//		};
+		//		case CREATE_ADMIN_DATA -> new Supplier<>()
+		//		{
+		//			private final int threadCount = rangeAmountThreads.getValue().intValue() / cmbTargets.getSelectedItems()
+		//				.size();
+		//			private final List<List<DTOBook>> batchedBooks = Lists.partition(BOOKS, 1_000);
+		//
+		//			private int threadTotal = 0;
+		//
+		//			@Override
+		//			public Executable get()
+		//			{
+		//				final BookstoreHttpClient httpClient = nextHttpClient();
+		//				final int threadNumber = threadTotal++;
+		//				return () ->
+		//				{
+		//					for (int i = 0; i < batchedBooks.size(); i++)
+		//					{
+		//						if (Thread.interrupted())
+		//						{
+		//							throw new InterruptedException();
+		//						}
+		//
+		//						if (i % threadCount != threadNumber)
+		//						{
+		//							continue;
+		//						}
+		//
+		//						httpClient.createBookBatched(batchedBooks.get(i));
+		//					}
+		//				};
+		//			}
+		//		};
+		default -> throw new RuntimeException("Encountered unexpected task name");
+		};
+	}
+
+	private void executeTask(Supplier<Executable> taskSupplier)
+	{
+		final Set<String> targets = this.cmbTargets.getSelectedItems();
+
+		final int threadCount = this.rangeAmountThreads.getValue().intValue();
+		final long runCount = this.rangeRunCount.getValue().longValue();
+		final int delayMs = this.rangeSendDelay.getValue().intValue();
+
+		executeTask(taskSupplier, targets, threadCount, runCount, delayMs);
+	}
+
+	private void executeTask(
+		Supplier<Executable> taskSupplier,
+		Set<String> targets,
+		int threadCount,
+		long runCount,
+		int delayMs
+	)
+	{
 		this.btnStart.setEnabled(false);
 		this.btnStop.setEnabled(true);
 
-		// Calling tasks alternate calling from postgres and eclipsestore
-		final Supplier<Executable> taskGenerator = switch (this.radioButtonGroup.getValue())
-		{
-		case BOOKS_BY_TITLE -> new Supplier<>()
-		{
-			private final Random seededRandom = new Random(rangeRandomSeed.getValue().longValue());
-
-			@Override
-			public Executable get()
-			{
-				final String search = Character.toString((char)seededRandom.nextInt('a', 'z' + 1));
-				final var httpClient = nextHttpClient();
-				return () -> httpClient.searchByTitle(search);
-			}
-		};
-		case BOOKS_BY_ISBN -> new Supplier<>()
-		{
-			private final List<String> pgAuthors = pgHttpClient.listAuthors(10).stream().map(DTOAuthor::mail).toList();
-			private final List<String> esAuthors = esHttpClient.listAuthors(10).stream().map(DTOAuthor::mail).toList();
-
-			{
-				LOG.info("Creating the generator");
-			}
-
-			@Override
-			public Executable get()
-			{
-				LOG.info("Calling get on generator");
-				boolean callEs;
-
-				final Set<String> targets = cmbTargets.getValue();
-				if (targets.size() == 2)
-				{
-					httpClientToggle = !httpClientToggle;
-					callEs = httpClientToggle;
-				}
-				else
-				{
-					callEs = targets.contains(ECLIPSESTORE);
-				}
-
-				return () ->
-				{
-					LOG.info("Calling run on task");
-					final BookstoreHttpClient client;
-					final List<String> authors;
-
-					if (callEs)
-					{
-						client = esHttpClient;
-						authors = esAuthors;
-					}
-					else
-					{
-						client = pgHttpClient;
-						authors = pgAuthors;
-					}
-
-					final var randomAuthor = authors.get(random.nextInt(pgAuthors.size()));
-					LOG.info("Searching author {}", randomAuthor);
-					client.searchByAuthor(randomAuthor);
-				};
-			}
-		};
-		case CREATE_DATA -> () ->
-		{
-			final var httpClient = nextHttpClient();
-			return () ->
-			{
-				for (List<DTOBook> batch : Lists.partition(books, 1_000))
-				{
-					httpClient.createBookBatched(batch);
-
-					if (Thread.interrupted())
-					{
-						throw new InterruptedException();
-					}
-				}
-			};
-		};
-		case CLEAR_DATA -> () ->
-		{
-			final var httpClient = nextHttpClient();
-			return httpClient::clearBooks;
-		};
-		default -> throw new RuntimeException("Encountered unexpected task name");
-		};
-
-		executeTask(taskGenerator);
-	}
-
-	private void executeTask(Supplier<Executable> taskGenerator)
-	{
-		final int threadCount = this.rangeAmountThreads.getValue().intValue();
-		final int delayMs = this.rangeSendDelay.getValue().intValue();
-		final int runCount = this.rangeRunCount.getValue().intValue();
-
-		this.taskRunner = new TaskRunner(threadCount, runCount, delayMs, taskGenerator, this::onTasksFinished);
+		this.taskRunner = new TaskRunner(
+			threadCount * targets.size(),
+			ckRunInfinite.getValue() ? Long.MAX_VALUE : runCount / threadCount,
+			delayMs,
+			taskSupplier,
+			this::onTasksFinished
+		);
 		this.taskRunner.start();
 	}
 
@@ -276,6 +276,100 @@ public class MainLayout extends VerticalLayout
 		this.btnStart.setEnabled(!event.getValue().isEmpty());
 	}
 
+	/**
+	 * Event handler delegate method for the {@link Button} {@link #btnClearData}.
+	 *
+	 * @see ComponentEventListener#onComponentEvent(ComponentEvent)
+	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
+	 */
+	private void btnClearData_onClick(final ClickEvent<Button> event)
+	{
+		Supplier<Executable> taskSupplier = new Supplier<>()
+		{
+			private boolean toggle = false;
+
+			@Override
+			public Executable get()
+			{
+				toggle = !toggle;
+				var client = toggle ? esHttpClient : pgHttpClient;
+				return new AdminClearBooksTask(client);
+			}
+		};
+		this.executeTask(taskSupplier, Set.of(ECLIPSESTORE, POSTGRES), 1, 1, 0);
+	}
+
+	/**
+	 * Event handler delegate method for the {@link Button}
+	 * {@link #btnAdminGenerateData}.
+	 *
+	 * @see ComponentEventListener#onComponentEvent(ComponentEvent)
+	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
+	 */
+	private void btnAdminGenerateData_onClick(final ClickEvent<Button> event)
+	{
+		int bookCount = rangeAdminDataAmount.getValue();
+		try
+		{
+			MockupData.generateData(bookCount, 1_000, 500);
+			books = MockupData.loadData();
+		}
+		catch (IOException e)
+		{
+			LOG.error("Failed to generate data", e);
+			new Dialog("Failed to generate data. Please check logs.").open();
+			return;
+		}
+		Supplier<Executable> taskSupplier = new Supplier<>()
+		{
+			private final List<List<DTOBook>> booksBatched = Lists.partition(books, 1_000);
+			private boolean toggle = false;
+
+			@Override
+			public Executable get()
+			{
+				toggle = !toggle;
+				var client = toggle ? esHttpClient : pgHttpClient;
+				return new AdminCreateBooksTask(client, booksBatched);
+			}
+		};
+		this.executeTask(taskSupplier, Set.of(ECLIPSESTORE, POSTGRES), 1, 1, 0);
+	}
+
+	/**
+	 * Event handler delegate method for the {@link Button}
+	 * {@link #btnAdminLoadData}.
+	 *
+	 * @see ComponentEventListener#onComponentEvent(ComponentEvent)
+	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
+	 */
+	private void btnAdminLoadData_onClick(final ClickEvent<Button> event)
+	{
+		try
+		{
+			books = MockupData.loadData();
+		}
+		catch (IOException e)
+		{
+			LOG.error("Failed to load data", e);
+			new Dialog("Failed to load data. Please check logs.").open();
+			return;
+		}
+	}
+
+	/**
+	 * Event handler delegate method for the {@link Checkbox}
+	 * {@link #ckRunInfinite}.
+	 *
+	 * @see HasValue.ValueChangeListener#valueChanged(HasValue.ValueChangeEvent)
+	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
+	 */
+	private void ckRunInfinite_valueChanged(final ComponentValueChangeEvent<Checkbox, Boolean> event)
+	{
+		boolean runInfinite = event.getValue();
+		this.rangeRunCount.setEnabled(!runInfinite);
+	}
+
 	/*
 	 * WARNING: Do NOT edit!<br>The content of this method is always regenerated by
 	 * the UI designer.
@@ -294,13 +388,20 @@ public class MainLayout extends VerticalLayout
 		this.hr2 = new Hr();
 		this.rangeAmountThreads = new NumberField();
 		this.rangeRunCount = new NumberField();
+		this.ckRunInfinite = new Checkbox();
 		this.rangeSendDelay = new NumberField();
 		this.hr3 = new Hr();
 		this.rangeRandomSeed = new NumberField();
+		this.rangeAdminDataAmount = new IntegerField();
+		this.btnAdminGenerateData = new Button();
+		this.btnAdminLoadData = new Button();
+		this.btnClearData = new Button();
 		this.grid = new Grid<>(Action.class, false);
 
 		this.verticalLayout.setSpacing(false);
 		this.verticalLayout.setPadding(false);
+		this.verticalLayout.getStyle().set("overflow-x", "hidden");
+		this.verticalLayout.getStyle().set("overflow-y", "auto");
 		this.btnStart.setText("Start");
 		this.btnStart.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
 		this.btnStart.setIcon(VaadinIcon.PLAY.create());
@@ -316,13 +417,18 @@ public class MainLayout extends VerticalLayout
 		this.cmbTargets.setLabel("Task Targets");
 		this.cmbTargets.setItemLabelGenerator(ItemLabelGeneratorFactory.NonNull(CaptionUtils::resolveCaption));
 		this.rangeAmountThreads.setValue(1.0);
-		this.rangeAmountThreads.setLabel("Amount Threads");
+		this.rangeAmountThreads.setLabel("Amount Threads (per Server)");
 		this.rangeRunCount.setValue(1.0);
-		this.rangeRunCount.setLabel("Run Count");
+		this.rangeRunCount.setLabel("Run Count (per Server)");
+		this.ckRunInfinite.setLabel("Run Forever");
 		this.rangeSendDelay.setValue(0.0);
 		this.rangeSendDelay.setLabel("Send Delay (ms)");
 		this.rangeRandomSeed.setValue(123456.0);
 		this.rangeRandomSeed.setLabel("Random Seed");
+		this.rangeAdminDataAmount.setLabel("Data Amount (Books)");
+		this.btnAdminGenerateData.setText("Generate Data");
+		this.btnAdminLoadData.setText("Load existing data");
+		this.btnClearData.setText("Clear Data");
 		this.grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 		this.grid.addColumn(
 			new LocalDateTimeRenderer<>(
@@ -351,11 +457,16 @@ public class MainLayout extends VerticalLayout
 		this.rangeAmountThreads.setHeight(null);
 		this.rangeRunCount.setWidthFull();
 		this.rangeRunCount.setHeight(null);
+		this.ckRunInfinite.setSizeUndefined();
 		this.rangeSendDelay.setWidthFull();
 		this.rangeSendDelay.setHeight(null);
 		this.hr3.setSizeUndefined();
 		this.rangeRandomSeed.setWidthFull();
 		this.rangeRandomSeed.setHeight(null);
+		this.rangeAdminDataAmount.setSizeUndefined();
+		this.btnAdminGenerateData.setSizeUndefined();
+		this.btnAdminLoadData.setSizeUndefined();
+		this.btnClearData.setSizeUndefined();
 		this.verticalLayout.add(
 			this.btnStart,
 			this.btnStop,
@@ -365,9 +476,14 @@ public class MainLayout extends VerticalLayout
 			this.hr2,
 			this.rangeAmountThreads,
 			this.rangeRunCount,
+			this.ckRunInfinite,
 			this.rangeSendDelay,
 			this.hr3,
-			this.rangeRandomSeed
+			this.rangeRandomSeed,
+			this.rangeAdminDataAmount,
+			this.btnAdminGenerateData,
+			this.btnAdminLoadData,
+			this.btnClearData
 		);
 		this.verticalLayout.setWidth("300px");
 		this.verticalLayout.setHeightFull();
@@ -376,8 +492,7 @@ public class MainLayout extends VerticalLayout
 		this.horizontalLayout.add(this.verticalLayout, this.grid);
 		this.horizontalLayout.setSizeFull();
 		this.div.add(this.horizontalLayout);
-		this.div.setWidth("90%");
-		this.div.setHeight("80%");
+		this.div.setSizeFull();
 		this.add(this.div);
 		this.setHorizontalComponentAlignment(FlexComponent.Alignment.CENTER, this.div);
 		this.setSizeFull();
@@ -385,12 +500,18 @@ public class MainLayout extends VerticalLayout
 		this.btnStart.addClickListener(this::btnStart_onClick);
 		this.btnStop.addClickListener(this::btnStop_onClick);
 		this.cmbTargets.addValueChangeListener(this::cmbTargets_valueChanged);
+		this.ckRunInfinite.addValueChangeListener(this::ckRunInfinite_valueChanged);
+		this.btnAdminGenerateData.addClickListener(this::btnAdminGenerateData_onClick);
+		this.btnAdminLoadData.addClickListener(this::btnAdminLoadData_onClick);
+		this.btnClearData.addClickListener(this::btnClearData_onClick);
 	} // </generated-code>
 
 	// <generated-code name="variables">
-	private Button btnStart, btnStop;
+	private Checkbox ckRunInfinite;
+	private Button btnStart, btnStop, btnAdminGenerateData, btnAdminLoadData, btnClearData;
 	private Grid<Action> grid;
 	private NumberField rangeAmountThreads, rangeRunCount, rangeSendDelay, rangeRandomSeed;
+	private IntegerField rangeAdminDataAmount;
 	private HorizontalLayout horizontalLayout;
 	private VerticalLayout verticalLayout;
 	private Div div;

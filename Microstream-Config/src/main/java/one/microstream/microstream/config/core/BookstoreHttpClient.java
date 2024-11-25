@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
@@ -16,11 +17,17 @@ import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import one.microstream.microstream.config.dto.DTOAuthor;
 import one.microstream.microstream.config.dto.DTOBook;
 
 public class BookstoreHttpClient implements AutoCloseable
 {
+	private static final TypeReference<DTOBook> BOOK_TYPE = new TypeReference<>()
+	{
+	};
+	private static final TypeReference<List<DTOBook>> BOOK_LIST_TYPE = new TypeReference<>()
+	{
+	};
+
 	private final Client client = ClientBuilder.newClient();
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final WebTarget rootTarget;
@@ -36,57 +43,59 @@ public class BookstoreHttpClient implements AutoCloseable
 	{
 		request(book, "/books", "PUT");
 	}
-	
+
 	public void createBookBatched(final List<DTOBook> books)
 	{
 		request(books, "/books/batch", "PUT");
 	}
-	
+
 	public void clearBooks()
 	{
 		request(null, "/books", "DELETE");
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<DTOBook> searchByTitle(final String title)
 	{
-		return retrieve(null, "/books/search/" + URLEncoder.encode(title, StandardCharsets.UTF_8), "GET", List.class);
+		return retrieve(
+			null,
+			"/books/search/" + URLEncoder.encode(title, StandardCharsets.UTF_8),
+			"GET",
+			BOOK_LIST_TYPE
+		);
 	}
 
-	@SuppressWarnings("unchecked")
+	public DTOBook searchByIsbn(final String isbn)
+	{
+		return retrieve(null, "/books/" + URLEncoder.encode(isbn, StandardCharsets.UTF_8), "GET", BOOK_TYPE);
+	}
+
 	public List<DTOBook> searchByAuthor(final String author)
 	{
 		return retrieve(
 			null,
 			"/books/search/author/" + URLEncoder.encode(author, StandardCharsets.UTF_8),
 			"GET",
-			List.class
+			BOOK_LIST_TYPE
 		);
 	}
 
-	@SuppressWarnings("unchecked")
-	public List<DTOAuthor> listAuthors(final int limit)
+	private <T> T retrieve(Object dto, String path, String method, TypeReference<T> type)
 	{
-		return retrieve(
-			null,
-			"/authors",
-			"GET",
-			List.class,
-			Collections.singletonMap("limit", Integer.toString(limit))
-		);
+		return retrieve(dto, path, method, type, Collections.emptyMap());
 	}
 
-	private <T> T retrieve(Object dto, String path, String method, Class<T> clazz)
-	{
-		return retrieve(dto, path, method, clazz, Collections.emptyMap());
-	}
-
-	private <T> T retrieve(Object dto, String path, String method, Class<T> clazz, Map<String, String> queryParams)
+	private <T> T retrieve(
+		Object dto,
+		String path,
+		String method,
+		TypeReference<T> type,
+		Map<String, String> queryParams
+	)
 	{
 		final var response = request(dto, path, method, queryParams);
 		try
 		{
-			return this.objectMapper.readValue(response.readEntity(String.class), clazz);
+			return this.objectMapper.readValue(response.readEntity(String.class), type);
 		}
 		catch (JsonProcessingException e)
 		{

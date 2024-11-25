@@ -3,6 +3,7 @@
 <?xdevuiml version="1.0"?>
 <?template NONE?>
 <?import com.vaadin.flow.component.button.Button?>
+<?import com.vaadin.flow.component.checkbox.Checkbox?>
 <?import com.vaadin.flow.component.combobox.MultiSelectComboBox?>
 <?import com.vaadin.flow.component.grid.Grid?>
 <?import com.vaadin.flow.component.html.Div?>
@@ -10,16 +11,17 @@
 <?import com.vaadin.flow.component.orderedlayout.HorizontalLayout?>
 <?import com.vaadin.flow.component.orderedlayout.VerticalLayout?>
 <?import com.vaadin.flow.component.radiobutton.RadioButtonGroup?>
+<?import com.vaadin.flow.component.textfield.IntegerField?>
 <?import com.vaadin.flow.component.textfield.NumberField?>
 <?import java.lang.String?>
 <?import one.microstream.microstream.config.domain.Action?>
 <VerticalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="MainLayout" x:route="/">
     <x:constraints zpos="0" width="100%" height="100%" />
     <Div x:name="div">
-        <x:constraints width="90%" alignment="CENTER" height="80%" flex-grow="0.0" />
+        <x:constraints width="100%" alignment="CENTER" height="100%" flex-grow="0.0" />
         <HorizontalLayout x:name="horizontalLayout">
             <x:constraints width="100%" alignment="AUTO" height="100%" flex-grow="0.0" />
-            <VerticalLayout spacing="false" x:name="verticalLayout" padding="false">
+            <VerticalLayout spacing="false" x:name="verticalLayout" x:scrollbars="com.rapidclipse.vaadin.editor.model.ScrollbarsPolicy.VERTICAL" padding="false">
                 <x:constraints width="300px" height="100%" flex-grow="0.0" />
                 <Button x:themeVariants="LUMO_SUCCESS" x:name="btnStart" text="Start">
                     <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#PLAY" />
@@ -50,12 +52,16 @@
                 <Hr x:name="hr2">
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
                 </Hr>
-                <NumberField x:name="rangeAmountThreads" value="1.0" label="Amount Threads">
+                <NumberField x:name="rangeAmountThreads" value="1.0" label="Amount Threads (per Server)">
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
-                <NumberField x:name="rangeRunCount" value="1.0" label="Run Count">
+                <NumberField x:name="rangeRunCount" value="1.0" label="Run Count (per Server)">
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
+                <Checkbox x:name="ckRunInfinite" label="Run Forever">
+                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                    <x:event>valueChange.valueChanged</x:event>
+                </Checkbox>
                 <NumberField x:name="rangeSendDelay" value="0.0" label="Send Delay (ms)">
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
@@ -65,6 +71,21 @@
                 <NumberField x:name="rangeRandomSeed" value="123456.0" label="Random Seed">
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
+                <IntegerField x:name="rangeAdminDataAmount" label="Data Amount (Books)">
+                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                </IntegerField>
+                <Button x:name="btnAdminGenerateData" text="Generate Data">
+                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                    <x:event>click.onComponentEvent</x:event>
+                </Button>
+                <Button x:name="btnAdminLoadData" text="Load existing data">
+                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                    <x:event>click.onComponentEvent</x:event>
+                </Button>
+                <Button x:name="btnClearData" text="Clear Data">
+                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                    <x:event>click.onComponentEvent</x:event>
+                </Button>
             </VerticalLayout>
             <Grid x:themeVariants="LUMO_ROW_STRIPES" x:name="grid">
                 <x:typeArguments>

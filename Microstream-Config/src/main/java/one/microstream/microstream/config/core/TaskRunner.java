@@ -17,53 +17,67 @@ public class TaskRunner
 	private static final Logger LOG = LoggerFactory.getLogger(TaskRunner.class);
 
 	private final ExecutorService executor;
-	private final int runCount;
+	private final long runCount;
+	private final int threadCount;
 	private final int delayMs;
-	private final Supplier<Executable> taskGenerator;
+	private final Supplier<Executable> taskSupplier;
 	private final Runnable onTasksFinished;
 
 	public TaskRunner(
 		final int threadCount,
-		final int runCount,
+		final long runCount,
 		final int delayMs,
-		final Supplier<Executable> taskGenerator,
+		final Supplier<Executable> taskSupplier,
 		final Runnable onTasksFinished
 	)
 	{
 		this.executor = Executors.newFixedThreadPool(threadCount);
+		this.threadCount = threadCount;
 		this.runCount = runCount;
 		this.delayMs = delayMs;
-		this.taskGenerator = taskGenerator;
+		this.taskSupplier = taskSupplier;
 		this.onTasksFinished = onTasksFinished;
 	}
 
 	public void start()
 	{
 		final var finishCount = new AtomicInteger(0);
+		System.out.println("Run count: " + runCount);
 
-		for (int i = 0; i < this.runCount; i++)
+		for (int i = 0; i < threadCount; i++)
 		{
+			final var task = taskSupplier.get();
 			final int number = i;
-			final Executable task = this.taskGenerator.get();
+
 			this.executor.execute(() ->
 			{
-				LOG.trace("Executing run {}", number);
+				LOG.trace("Executing thread {}", number);
 
 				try
 				{
-					task.executable();
-					if (this.delayMs > 0)
+					for (long j = 0; j < this.runCount; j++)
 					{
-						ThreadUtils.trySleep(this.delayMs);
+						if (Thread.interrupted())
+						{
+							LOG.info("Task {} was interrupted", number);
+							break;
+						}
+
+						task.execute();
+						if (this.delayMs > 0)
+						{
+							ThreadUtils.trySleep(this.delayMs);
+						}
+
+						LOG.trace("Task {} done", number);
 					}
 				}
 				catch (final Exception e)
 				{
-					LOG.error("Run {} failed executing task", number, e);
+					LOG.error("Task {} failed executing task", number, e);
 				}
 
-				LOG.trace("Run {} done", number);
-				if (finishCount.incrementAndGet() == this.runCount)
+				if (finishCount.incrementAndGet() == this.threadCount)
 				{
 					LOG.info("All task runs completed");
 					this.onTasksFinished.run();
