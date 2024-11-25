@@ -23,6 +23,6 @@ public class BookByIsbnTask implements Executable
 	@Override
 	public void execute() throws Exception
 	{
-		httpClient.searchByIsbn(books.get(random.nextInt(books.size())).ISBN());
+		httpClient.searchByIsbn(books.get(random.nextInt(books.size())).isbn());
 	}
 }

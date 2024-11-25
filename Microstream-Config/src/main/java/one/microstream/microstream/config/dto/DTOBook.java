@@ -5,9 +5,13 @@ import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonFormat.Shape;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+@JsonIgnoreProperties({
+	"id", "UUID"
+})
 public record DTOBook(
-	String ISBN,
+	String isbn,
 	String title,
 	@JsonFormat(shape = Shape.STRING, pattern = "yyyy-MM-dd") LocalDate publicationDate,
 	int edition,
@@ -17,9 +21,4 @@ public record DTOBook(
 	DTOPublisher publisher
 )
 {
-	@Override
-	public String toString()
-	{
-		return title;
-	}
 }

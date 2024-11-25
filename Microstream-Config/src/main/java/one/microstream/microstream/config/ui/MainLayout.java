@@ -90,11 +90,6 @@ public class MainLayout extends VerticalLayout
 		this.btnAdminLoadData.setEnabled(Files.exists(MockupData.MOCKUP_DATA_PATH));
 	}
 
-	private boolean dataLoaded()
-	{
-		return books != null;
-	}
-
 	/**
 	 * Event handler delegate method for the {@link Button} {@link #btnStart}.
 	 *
@@ -103,12 +98,6 @@ public class MainLayout extends VerticalLayout
 	 */
 	private void btnStart_onClick(final ClickEvent<Button> event)
 	{
-		if (!dataLoaded())
-		{
-			new Dialog("No data loaded/generated").open();
-			return;
-		}
-
 		final Set<String> targets = this.cmbTargets.getSelectedItems();
 		Supplier<Executable> generator = switch (targets.size())
 		{
@@ -200,7 +189,7 @@ public class MainLayout extends VerticalLayout
 
 		final int threadCount = this.rangeAmountThreads.getValue().intValue();
 		final long runCount = this.rangeRunCount.getValue().longValue();
-		final int delayMs = this.rangeSendDelay.getValue().intValue();
+		final int delayMs = this.rangeRampUpSeconds.getValue().intValue();
 
 		executeTask(taskSupplier, targets, threadCount, runCount, delayMs);
 	}
@@ -228,7 +217,7 @@ public class MainLayout extends VerticalLayout
 
 	private void onTasksFinished()
 	{
-		// Needs to be a new thread as this is called inside a task thread
+		// Needs to be a new thread as this is called inside a task thread. Will lock up on shutdown waiting otherwise
 		new Thread(() ->
 		{
 			try
@@ -258,8 +247,13 @@ public class MainLayout extends VerticalLayout
 
 		this.taskRunner = null;
 
-		this.btnStart.setEnabled(!this.cmbTargets.getValue().isEmpty());
+		refreshStartButton();
 		this.btnStop.setEnabled(false);
+	}
+
+	private void refreshStartButton()
+	{
+		this.btnStart.setEnabled(!this.cmbTargets.getSelectedItems().isEmpty() && books != null);
 	}
 
 	/**
@@ -273,7 +267,7 @@ public class MainLayout extends VerticalLayout
 		final ComponentValueChangeEvent<MultiSelectComboBox<String>, Set<String>> event
 	)
 	{
-		this.btnStart.setEnabled(!event.getValue().isEmpty());
+		refreshStartButton();
 	}
 
 	/**
@@ -355,6 +349,8 @@ public class MainLayout extends VerticalLayout
 			new Dialog("Failed to load data. Please check logs.").open();
 			return;
 		}
+
+		refreshStartButton();
 	}
 
 	/**
@@ -389,7 +385,7 @@ public class MainLayout extends VerticalLayout
 		this.rangeAmountThreads = new NumberField();
 		this.rangeRunCount = new NumberField();
 		this.ckRunInfinite = new Checkbox();
-		this.rangeSendDelay = new NumberField();
+		this.rangeRampUpSeconds = new NumberField();
 		this.hr3 = new Hr();
 		this.rangeRandomSeed = new NumberField();
 		this.rangeAdminDataAmount = new IntegerField();
@@ -397,11 +393,12 @@ public class MainLayout extends VerticalLayout
 		this.btnAdminLoadData = new Button();
 		this.btnClearData = new Button();
 		this.grid = new Grid<>(Action.class, false);
-
+	
 		this.verticalLayout.setSpacing(false);
 		this.verticalLayout.setPadding(false);
 		this.verticalLayout.getStyle().set("overflow-x", "hidden");
 		this.verticalLayout.getStyle().set("overflow-y", "auto");
+		this.btnStart.setEnabled(false);
 		this.btnStart.setText("Start");
 		this.btnStart.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
 		this.btnStart.setIcon(VaadinIcon.PLAY.create());
@@ -421,10 +418,11 @@ public class MainLayout extends VerticalLayout
 		this.rangeRunCount.setValue(1.0);
 		this.rangeRunCount.setLabel("Run Count (per Server)");
 		this.ckRunInfinite.setLabel("Run Forever");
-		this.rangeSendDelay.setValue(0.0);
-		this.rangeSendDelay.setLabel("Send Delay (ms)");
+		this.rangeRampUpSeconds.setValue(0.0);
+		this.rangeRampUpSeconds.setLabel("Ramp Up Delay (seconds). 0 = no delay");
 		this.rangeRandomSeed.setValue(123456.0);
 		this.rangeRandomSeed.setLabel("Random Seed");
+		this.rangeAdminDataAmount.setValue(10000);
 		this.rangeAdminDataAmount.setLabel("Data Amount (Books)");
 		this.btnAdminGenerateData.setText("Generate Data");
 		this.btnAdminLoadData.setText("Load existing data");
@@ -443,7 +441,7 @@ public class MainLayout extends VerticalLayout
 			.setSortable(true)
 			.setAutoWidth(true);
 		this.grid.setSelectionMode(Grid.SelectionMode.SINGLE);
-
+	
 		this.btnStart.setWidthFull();
 		this.btnStart.setHeight(null);
 		this.btnStop.setWidthFull();
@@ -458,8 +456,8 @@ public class MainLayout extends VerticalLayout
 		this.rangeRunCount.setWidthFull();
 		this.rangeRunCount.setHeight(null);
 		this.ckRunInfinite.setSizeUndefined();
-		this.rangeSendDelay.setWidthFull();
-		this.rangeSendDelay.setHeight(null);
+		this.rangeRampUpSeconds.setWidthFull();
+		this.rangeRampUpSeconds.setHeight(null);
 		this.hr3.setSizeUndefined();
 		this.rangeRandomSeed.setWidthFull();
 		this.rangeRandomSeed.setHeight(null);
@@ -477,7 +475,7 @@ public class MainLayout extends VerticalLayout
 			this.rangeAmountThreads,
 			this.rangeRunCount,
 			this.ckRunInfinite,
-			this.rangeSendDelay,
+			this.rangeRampUpSeconds,
 			this.hr3,
 			this.rangeRandomSeed,
 			this.rangeAdminDataAmount,
@@ -496,7 +494,7 @@ public class MainLayout extends VerticalLayout
 		this.add(this.div);
 		this.setHorizontalComponentAlignment(FlexComponent.Alignment.CENTER, this.div);
 		this.setSizeFull();
-
+	
 		this.btnStart.addClickListener(this::btnStart_onClick);
 		this.btnStop.addClickListener(this::btnStop_onClick);
 		this.cmbTargets.addValueChangeListener(this::cmbTargets_valueChanged);
@@ -510,7 +508,7 @@ public class MainLayout extends VerticalLayout
 	private Checkbox ckRunInfinite;
 	private Button btnStart, btnStop, btnAdminGenerateData, btnAdminLoadData, btnClearData;
 	private Grid<Action> grid;
-	private NumberField rangeAmountThreads, rangeRunCount, rangeSendDelay, rangeRandomSeed;
+	private NumberField rangeAmountThreads, rangeRunCount, rangeRampUpSeconds, rangeRandomSeed;
 	private IntegerField rangeAdminDataAmount;
 	private HorizontalLayout horizontalLayout;
 	private VerticalLayout verticalLayout;

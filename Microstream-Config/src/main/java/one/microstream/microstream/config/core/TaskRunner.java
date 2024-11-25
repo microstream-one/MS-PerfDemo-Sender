@@ -19,14 +19,14 @@ public class TaskRunner
 	private final ExecutorService executor;
 	private final long runCount;
 	private final int threadCount;
-	private final int delayMs;
+	private final int rampUpDelaySeconds;
 	private final Supplier<Executable> taskSupplier;
 	private final Runnable onTasksFinished;
 
 	public TaskRunner(
 		final int threadCount,
 		final long runCount,
-		final int delayMs,
+		final int rampUpDelaySeconds,
 		final Supplier<Executable> taskSupplier,
 		final Runnable onTasksFinished
 	)
@@ -34,7 +34,7 @@ public class TaskRunner
 		this.executor = Executors.newFixedThreadPool(threadCount);
 		this.threadCount = threadCount;
 		this.runCount = runCount;
-		this.delayMs = delayMs;
+		this.rampUpDelaySeconds = rampUpDelaySeconds;
 		this.taskSupplier = taskSupplier;
 		this.onTasksFinished = onTasksFinished;
 	}
@@ -42,16 +42,22 @@ public class TaskRunner
 	public void start()
 	{
 		final var finishCount = new AtomicInteger(0);
-		System.out.println("Run count: " + runCount);
 
 		for (int i = 0; i < threadCount; i++)
 		{
+			if (rampUpDelaySeconds > 0)
+			{
+				// Not perfect but good enough for our case of waiting for ramp up
+				long rampUpDelayMs = rampUpDelaySeconds * 1000L;
+				ThreadUtils.trySleep(rampUpDelayMs / threadCount);
+			}
+
 			final var task = taskSupplier.get();
 			final int number = i;
 
 			this.executor.execute(() ->
 			{
-				LOG.trace("Executing thread {}", number);
+				LOG.info("Running thread {}", number);
 
 				try
 				{
@@ -64,10 +70,6 @@ public class TaskRunner
 						}
 
 						task.execute();
-						if (this.delayMs > 0)
-						{
-							ThreadUtils.trySleep(this.delayMs);
-						}
 
 						LOG.trace("Task {} done", number);
 					}
@@ -84,6 +86,8 @@ public class TaskRunner
 				}
 			});
 		}
+
+		LOG.info("Started all task threads");
 	}
 
 	public void stop()
