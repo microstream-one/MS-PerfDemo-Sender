@@ -80,12 +80,15 @@ services:
       - grafana:/var/lib/grafana
   
   # Calls the endpoints of the postgres and eclipsestore REST servers
-  #microstream-performance-demo-caller:
-  #  image: microstream-performance-demo-caller:latest
-  #  restart: always
-  #  ports:
-  #    - 8080:8080
-
+  microstream-performance-demo-caller:
+    image: microstream-performance-demo-caller:latest
+    restart: always
+    ports:
+      - 8080:8080
+    environment:
+      POSTGRES_URL: http://postgres-server:8080
+      ECLIPSESTORE_URL: http://eclipsestore-server:8080
+      PERF_DEMO_DATA_PATH: /storage/ms-perf-demo-data.json
 volumes:
   postgres:
   prometheus:
