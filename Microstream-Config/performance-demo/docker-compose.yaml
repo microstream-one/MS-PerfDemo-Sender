@@ -12,6 +12,7 @@ services:
       HBM2DDL_AUTO: create
     ports:
       - 8081:8080
+    cpus: 1.75
       
   # The eclipsestore database and demo REST server
   eclipsestore-server:
@@ -21,6 +22,7 @@ services:
       - eclipsestore:/storage
     ports:
       - 8082:8080
+    cpus: 2
   
   # The postgres database server
   postgres-db:
@@ -35,7 +37,8 @@ services:
       POSTGRES_PASSWORD: admin
     ports:
       - 5432:5432
-      
+    cpus: 0.25
+
   # Prometheus exporter for postgres metrics
   postgres-metrics-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter
