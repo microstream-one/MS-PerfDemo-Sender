@@ -9,7 +9,7 @@ services:
       JDBC_PASSWORD: admin
       JDBC_URL: jdbc:postgresql://postgres-db:5432/Bookstore
       # Enable to let hibernate generate the database schema
-      #HBM2DDL_AUTO: create
+      HBM2DDL_AUTO: create
     ports:
       - 8081:8080
       
@@ -88,7 +88,6 @@ services:
     environment:
       POSTGRES_URL: http://postgres-server:8080
       ECLIPSESTORE_URL: http://eclipsestore-server:8080
-      PERF_DEMO_DATA_PATH: /storage/ms-perf-demo-data.json
 volumes:
   postgres:
   prometheus:

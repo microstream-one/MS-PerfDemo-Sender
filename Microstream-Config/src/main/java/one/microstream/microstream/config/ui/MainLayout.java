@@ -1,8 +1,6 @@
 
 package one.microstream.microstream.config.ui;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.List;
@@ -26,7 +24,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
@@ -86,8 +83,6 @@ public class MainLayout extends VerticalLayout
 		this.radioButtonGroup.setValue(BOOKS_BY_TITLE);
 		this.cmbTargets.setItems(ECLIPSESTORE, POSTGRES);
 		this.cmbTargets.select(ECLIPSESTORE, POSTGRES);
-
-		this.btnAdminLoadData.setEnabled(Files.exists(MockupData.MOCKUP_DATA_PATH));
 	}
 
 	/**
@@ -303,17 +298,7 @@ public class MainLayout extends VerticalLayout
 	private void btnAdminGenerateData_onClick(final ClickEvent<Button> event)
 	{
 		int bookCount = rangeAdminDataAmount.getValue();
-		try
-		{
-			MockupData.generateData(bookCount, 1_000, 500);
-			books = MockupData.loadData();
-		}
-		catch (IOException e)
-		{
-			LOG.error("Failed to generate data", e);
-			new Dialog("Failed to generate data. Please check logs.").open();
-			return;
-		}
+		books = MockupData.generateData(bookCount, 1_000, 500);
 		Supplier<Executable> taskSupplier = new Supplier<>()
 		{
 			private final List<List<DTOBook>> booksBatched = Lists.partition(books, 1_000);
@@ -328,29 +313,6 @@ public class MainLayout extends VerticalLayout
 			}
 		};
 		this.executeTask(taskSupplier, Set.of(ECLIPSESTORE, POSTGRES), 1, 1, 0);
-	}
-
-	/**
-	 * Event handler delegate method for the {@link Button}
-	 * {@link #btnAdminLoadData}.
-	 *
-	 * @see ComponentEventListener#onComponentEvent(ComponentEvent)
-	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
-	 */
-	private void btnAdminLoadData_onClick(final ClickEvent<Button> event)
-	{
-		try
-		{
-			books = MockupData.loadData();
-		}
-		catch (IOException e)
-		{
-			LOG.error("Failed to load data", e);
-			new Dialog("Failed to load data. Please check logs.").open();
-			return;
-		}
-
-		refreshStartButton();
 	}
 
 	/**
@@ -390,10 +352,9 @@ public class MainLayout extends VerticalLayout
 		this.rangeRandomSeed = new NumberField();
 		this.rangeAdminDataAmount = new IntegerField();
 		this.btnAdminGenerateData = new Button();
-		this.btnAdminLoadData = new Button();
 		this.btnClearData = new Button();
 		this.grid = new Grid<>(Action.class, false);
-	
+
 		this.verticalLayout.setSpacing(false);
 		this.verticalLayout.setPadding(false);
 		this.verticalLayout.getStyle().set("overflow-x", "hidden");
@@ -425,7 +386,6 @@ public class MainLayout extends VerticalLayout
 		this.rangeAdminDataAmount.setValue(10000);
 		this.rangeAdminDataAmount.setLabel("Data Amount (Books)");
 		this.btnAdminGenerateData.setText("Generate Data");
-		this.btnAdminLoadData.setText("Load existing data");
 		this.btnClearData.setText("Clear Data");
 		this.grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
 		this.grid.addColumn(
@@ -441,7 +401,7 @@ public class MainLayout extends VerticalLayout
 			.setSortable(true)
 			.setAutoWidth(true);
 		this.grid.setSelectionMode(Grid.SelectionMode.SINGLE);
-	
+
 		this.btnStart.setWidthFull();
 		this.btnStart.setHeight(null);
 		this.btnStop.setWidthFull();
@@ -463,7 +423,6 @@ public class MainLayout extends VerticalLayout
 		this.rangeRandomSeed.setHeight(null);
 		this.rangeAdminDataAmount.setSizeUndefined();
 		this.btnAdminGenerateData.setSizeUndefined();
-		this.btnAdminLoadData.setSizeUndefined();
 		this.btnClearData.setSizeUndefined();
 		this.verticalLayout.add(
 			this.btnStart,
@@ -480,7 +439,6 @@ public class MainLayout extends VerticalLayout
 			this.rangeRandomSeed,
 			this.rangeAdminDataAmount,
 			this.btnAdminGenerateData,
-			this.btnAdminLoadData,
 			this.btnClearData
 		);
 		this.verticalLayout.setWidth("300px");
@@ -494,19 +452,18 @@ public class MainLayout extends VerticalLayout
 		this.add(this.div);
 		this.setHorizontalComponentAlignment(FlexComponent.Alignment.CENTER, this.div);
 		this.setSizeFull();
-	
+
 		this.btnStart.addClickListener(this::btnStart_onClick);
 		this.btnStop.addClickListener(this::btnStop_onClick);
 		this.cmbTargets.addValueChangeListener(this::cmbTargets_valueChanged);
 		this.ckRunInfinite.addValueChangeListener(this::ckRunInfinite_valueChanged);
 		this.btnAdminGenerateData.addClickListener(this::btnAdminGenerateData_onClick);
-		this.btnAdminLoadData.addClickListener(this::btnAdminLoadData_onClick);
 		this.btnClearData.addClickListener(this::btnClearData_onClick);
 	} // </generated-code>
 
 	// <generated-code name="variables">
 	private Checkbox ckRunInfinite;
-	private Button btnStart, btnStop, btnAdminGenerateData, btnAdminLoadData, btnClearData;
+	private Button btnStart, btnStop, btnAdminGenerateData, btnClearData;
 	private Grid<Action> grid;
 	private NumberField rangeAmountThreads, rangeRunCount, rangeRampUpSeconds, rangeRandomSeed;
 	private IntegerField rangeAdminDataAmount;

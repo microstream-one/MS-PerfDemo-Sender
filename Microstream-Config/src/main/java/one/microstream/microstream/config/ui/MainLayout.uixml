@@ -78,10 +78,6 @@
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
                     <x:event>click.onComponentEvent</x:event>
                 </Button>
-                <Button x:name="btnAdminLoadData" text="Load existing data">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                    <x:event>click.onComponentEvent</x:event>
-                </Button>
                 <Button x:name="btnClearData" text="Clear Data">
                     <x:constraints width="0px" height="0px" flex-grow="0.0" />
                     <x:event>click.onComponentEvent</x:event>
