@@ -53,7 +53,7 @@ public class BookstoreHttpClient implements AutoCloseable
 
 	public void clearBooks()
 	{
-		request(null, "/books", "DELETE");
+		request(null, "/books/flushdatabase", "DELETE");
 	}
 
 	public List<DTOBook> searchByTitle(final String title)
