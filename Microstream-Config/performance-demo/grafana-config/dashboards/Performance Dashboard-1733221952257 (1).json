@@ -137,14 +137,14 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "sum by(name) (increase(container_cpu_usage_seconds_total{name=~\"^.*eclipsestore-server-1.*$\"}[1m])) / 60",
+          "expr": "sum by(name) (increase(container_cpu_usage_seconds_total{name=~\"^.*eclipsestore-server-1.*$\"}[1m]) / 60) / on(name) (sum by (name) (container_spec_cpu_quota{name=\"performance-demo-eclipsestore-server-1\"} / 100000))",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "EclipseStore Micronaut DataProvider",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -238,33 +238,16 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "sum by(instance) (jvm_memory_used_bytes{instance=\"eclipsestore-server:8080\"})",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "legendFormat": "EclipseStore Micronaut DataProvider",
           "range": true,
           "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${prometheus}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "code",
-          "expr": "jvm_memory_used_bytes{instance=\"postgres-server:8080\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "B",
           "useBackend": false
         }
       ],
@@ -274,7 +257,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -360,10 +343,10 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "sum by(name) (increase(container_cpu_usage_seconds_total{name=~\"^.*postgres-server-1.*$\"}[1m])) / 60",
+          "expr": "sum by(name) (increase(container_cpu_usage_seconds_total{name=~\"^.*postgres-server-1.*$\"}[1m]) / 60) / on(name) (sum by (name) (container_spec_cpu_quota{name=\"performance-demo-postgres-server-1\"} / 100000))",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
-          "legendFormat": "{{instance}}",
+          "legendFormat": "Postgres Micronaut DataProvider",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -371,13 +354,13 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "sum by(name) (increase(container_cpu_usage_seconds_total{name=~\"^.*db-1.*$\"}[1m])) / 60",
+          "expr": "sum by(name) (increase(container_cpu_usage_seconds_total{name=~\"^.*db-1.*$\"}[1m]) / 60) / on(name) (sum by (name) (container_spec_cpu_quota{name=\"performance-demo-postgres-db-1\"} / 100000))",
           "hide": false,
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "PostgreSQL Database",
           "range": true,
           "refId": "B"
         }
@@ -470,16 +453,16 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "process_resident_memory_bytes",
+          "editorMode": "code",
+          "expr": "process_resident_memory_bytes{instance=\"postgres-metrics-exporter:9187\"}",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "Postgres",
+          "legendFormat": "PostgreSQL Database",
           "range": true,
           "refId": "A",
           "useBackend": false
@@ -490,13 +473,13 @@
             "uid": "${prometheus}"
           },
           "disableTextWrap": false,
-          "editorMode": "builder",
+          "editorMode": "code",
           "expr": "sum by(instance) (jvm_memory_used_bytes{instance=\"postgres-server:8080\"})",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
           "instant": false,
-          "legendFormat": "Java",
+          "legendFormat": "Postgres-Micronaut DataProvider",
           "range": true,
           "refId": "B",
           "useBackend": false
@@ -508,7 +491,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -608,7 +591,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "fieldConfig": {
         "defaults": {
@@ -653,7 +636,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -661,7 +645,7 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -670,6 +654,108 @@
         "w": 24,
         "x": 0,
         "y": 24
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.3.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "disableTextWrap": false,
+          "editorMode": "code",
+          "expr": "increase(http_server_requests_seconds_sum[1m]) / increase(http_server_requests_seconds_count[1m])",
+          "fullMetaSearch": false,
+          "includeNullMetadata": true,
+          "legendFormat": "{{method}} {{instance}}{{uri}}",
+          "range": true,
+          "refId": "A",
+          "useBackend": false
+        }
+      ],
+      "title": "Average Response Times",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${prometheus}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 32
       },
       "id": 5,
       "options": {
@@ -702,7 +788,7 @@
           "useBackend": false
         }
       ],
-      "title": "CPU Usage (All Containers)",
+      "title": "CPU Usage in Cores (All Containers)",
       "type": "timeseries"
     }
   ],
@@ -723,13 +809,13 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Performance Dashboard",
-  "uid": "ae37bat5qrxfkd",
-  "version": 3,
+  "uid": "ae37bat5qrxfkdaaa",
+  "version": 5,
   "weekStart": ""
 }
