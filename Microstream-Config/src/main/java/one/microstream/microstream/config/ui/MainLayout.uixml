@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE xml>
 <?xdevuiml version="1.0"?>
-<?template NONE?>
+<?template BROWSER_WUXGA?>
 <?import com.vaadin.flow.component.button.Button?>
 <?import com.vaadin.flow.component.checkbox.Checkbox?>
 <?import com.vaadin.flow.component.combobox.MultiSelectComboBox?>
@@ -30,6 +30,11 @@
                 </Button>
                 <Button enabled="false" x:themeVariants="LUMO_ERROR" x:name="btnStop" text="Stop">
                     <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#STOP" />
+                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
+                    <x:event>click.onComponentEvent</x:event>
+                </Button>
+                <Button x:themeVariants="LUMO_PRIMARY LUMO_ERROR" x:name="btnClearBooks" x:tooltip="Clears all inserted books from insert performance test." text="Reset Insert Test" maxWidth="">
+                    <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#TRASH" />
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                     <x:event>click.onComponentEvent</x:event>
                 </Button>
@@ -72,14 +77,14 @@
                     <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </NumberField>
                 <IntegerField x:name="rangeAdminDataAmount" value="10000" label="Data Amount (Books)">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
                 </IntegerField>
-                <Button x:name="btnAdminGenerateData" text="Generate Data">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                <Button x:name="btnAdminGenerateData" x:tooltip="Generates random data for later performance tests." text="Generate Data">
+                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
                     <x:event>click.onComponentEvent</x:event>
                 </Button>
-                <Button x:name="btnClearData" text="Clear Data">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                <Button x:themeVariants="LUMO_PRIMARY LUMO_ERROR" x:name="btnClearData" x:tooltip="Clear the whole database on both servers." text="Clear Data">
+                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
                     <x:event>click.onComponentEvent</x:event>
                 </Button>
             </VerticalLayout>

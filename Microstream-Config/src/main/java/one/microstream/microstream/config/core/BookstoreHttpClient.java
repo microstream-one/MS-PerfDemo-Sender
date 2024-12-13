@@ -56,6 +56,11 @@ public class BookstoreHttpClient implements AutoCloseable
 		request(null, "/books/flushdatabase", "DELETE");
 	}
 
+	public void resetBooksInsertPM()
+	{
+		request(null, "/books/flushinsertPM", "DELETE");
+	}
+	
 	public List<DTOBook> searchByTitle(final String title)
 	{
 		return retrieve(
