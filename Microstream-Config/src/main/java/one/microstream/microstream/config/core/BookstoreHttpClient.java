@@ -43,7 +43,7 @@ public class BookstoreHttpClient implements AutoCloseable
 
 	public void createBook(final DTOBook book)
 	{
-		request(book, "/books", "PUT");
+		request(book, "/books/insertPM", "PUT");
 	}
 
 	public void createBookBatched(final List<DTOBook> books)

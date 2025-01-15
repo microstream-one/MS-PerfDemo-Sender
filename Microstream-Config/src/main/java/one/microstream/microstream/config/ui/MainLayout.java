@@ -187,7 +187,7 @@ public class MainLayout extends VerticalLayout
 		final Set<String> targets = this.cmbTargets.getSelectedItems();
 
 		final int threadCount = this.rangeAmountThreads.getValue().intValue();
-		final long runCount = this.rangeRunCount.getValue().longValue();
+		final long runCount = ckRunInfinite.getValue() ? Long.MAX_VALUE : this.rangeRunCount.getValue().longValue() / threadCount;
 		final int delayMs = this.rangeRampUpSeconds.getValue().intValue();
 
 		executeTask(taskSupplier, targets, threadCount, runCount, delayMs);
@@ -206,7 +206,7 @@ public class MainLayout extends VerticalLayout
 
 		this.taskRunner = new TaskRunner(
 			threadCount * targets.size(),
-			ckRunInfinite.getValue() ? Long.MAX_VALUE : runCount / threadCount,
+			runCount,
 			delayMs,
 			taskSupplier,
 			this::onTasksFinished
