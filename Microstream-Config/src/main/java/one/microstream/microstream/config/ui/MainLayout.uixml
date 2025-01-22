@@ -5,103 +5,114 @@
 <?import com.vaadin.flow.component.button.Button?>
 <?import com.vaadin.flow.component.checkbox.Checkbox?>
 <?import com.vaadin.flow.component.combobox.MultiSelectComboBox?>
-<?import com.vaadin.flow.component.grid.Grid?>
 <?import com.vaadin.flow.component.html.Div?>
 <?import com.vaadin.flow.component.html.Hr?>
+<?import com.vaadin.flow.component.html.NativeLabel?>
 <?import com.vaadin.flow.component.orderedlayout.HorizontalLayout?>
 <?import com.vaadin.flow.component.orderedlayout.VerticalLayout?>
+<?import com.vaadin.flow.component.progressbar.ProgressBar?>
 <?import com.vaadin.flow.component.radiobutton.RadioButtonGroup?>
+<?import com.vaadin.flow.component.tabs.Tab?>
+<?import com.vaadin.flow.component.tabs.Tabs?>
 <?import com.vaadin.flow.component.textfield.IntegerField?>
 <?import com.vaadin.flow.component.textfield.NumberField?>
 <?import java.lang.String?>
-<?import one.microstream.microstream.config.domain.Action?>
-<VerticalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="MainLayout" x:route="/">
+<HorizontalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="MainLayout" x:route="/">
     <x:constraints zpos="0" width="100%" height="100%" />
-    <Div x:name="div">
-        <x:constraints width="100%" alignment="CENTER" height="100%" flex-grow="0.0" />
-        <HorizontalLayout x:name="horizontalLayout">
-            <x:constraints width="100%" alignment="AUTO" height="100%" flex-grow="0.0" />
-            <VerticalLayout spacing="false" x:name="verticalLayout" x:scrollbars="com.rapidclipse.vaadin.editor.model.ScrollbarsPolicy.VERTICAL" padding="false">
-                <x:constraints width="300px" height="100%" flex-grow="0.0" />
-                <Button enabled="false" x:themeVariants="LUMO_SUCCESS" x:name="btnStart" text="Start">
-                    <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#PLAY" />
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                    <x:event>click.onComponentEvent</x:event>
-                </Button>
-                <Button enabled="false" x:themeVariants="LUMO_ERROR" x:name="btnStop" text="Stop">
-                    <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#STOP" />
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                    <x:event>click.onComponentEvent</x:event>
-                </Button>
-                <Button x:themeVariants="LUMO_PRIMARY LUMO_ERROR" x:name="btnClearBooks" x:tooltip="Clears all inserted books from insert performance test." text="Reset Insert Test" maxWidth="">
-                    <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#TRASH" />
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                    <x:event>click.onComponentEvent</x:event>
-                </Button>
-                <Hr x:name="hr">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                </Hr>
-                <RadioButtonGroup x:name="radioButtonGroup" x:vertical="true">
-                    <x:typeArguments>
-                        <typeArgument type="String" />
-                    </x:typeArguments>
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                </RadioButtonGroup>
-                <MultiSelectComboBox x:name="cmbTargets" autoExpand="com.vaadin.flow.component.combobox.MultiSelectComboBox.AutoExpandMode.BOTH" label="Task Targets">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                    <x:typeArguments>
-                        <typeArgument type="String" />
-                    </x:typeArguments>
-                    <x:event>valueChange.valueChanged</x:event>
-                </MultiSelectComboBox>
-                <Hr x:name="hr2">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                </Hr>
-                <NumberField x:name="rangeAmountThreads" value="1.0" label="Amount Threads (per Server)">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                </NumberField>
-                <NumberField x:name="rangeRunCount" value="1.0" label="Run Count (per Server)">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                </NumberField>
-                <Checkbox x:name="ckRunInfinite" label="Run Forever">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                    <x:event>valueChange.valueChanged</x:event>
-                </Checkbox>
-                <NumberField x:name="rangeRampUpSeconds" value="0.0" label="Ramp Up Delay (seconds). 0 = no delay">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                </NumberField>
-                <Hr x:name="hr3">
-                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
-                </Hr>
-                <NumberField x:name="rangeRandomSeed" value="123456.0" label="Random Seed">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                </NumberField>
-                <IntegerField x:name="rangeAdminDataAmount" value="10000" label="Data Amount (Books)">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                </IntegerField>
-                <Button x:name="btnAdminGenerateData" x:tooltip="Generates random data for later performance tests." text="Generate Data">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                    <x:event>click.onComponentEvent</x:event>
-                </Button>
-                <Button x:themeVariants="LUMO_PRIMARY LUMO_ERROR" x:name="btnClearData" x:tooltip="Clear the whole database on both servers." text="Clear Data">
-                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
-                    <x:event>click.onComponentEvent</x:event>
-                </Button>
-            </VerticalLayout>
-            <Grid x:themeVariants="LUMO_ROW_STRIPES" x:name="grid">
-                <x:typeArguments>
-                    <typeArgument type="Action" />
-                </x:typeArguments>
-                <x:constraints width="-1px" height="100%" flex-grow="0.0" />
-                <x:columns>
-                    <column property="date" header="Time" sortable="true" autoWidth="true" flexGrow="0">
-                        <renderer nullRepresentation="" type="LocalDateTimeRenderer">
-                            <dateTimeFormatter zone="default" format="LocalizedDateTime" timeFormatStyle="SHORT" dateFormatStyle="MEDIUM" locale="default" />
-                        </renderer>
-                    </column>
-                    <column property="description" header="Action" sortable="true" autoWidth="true" />
-                </x:columns>
-            </Grid>
-        </HorizontalLayout>
-    </Div>
-</VerticalLayout>
+    <VerticalLayout spacing="false" x:name="verticalLayout" x:scrollbars="com.rapidclipse.vaadin.editor.model.ScrollbarsPolicy.VERTICAL">
+        <x:constraints width="400px" height="100%" flex-grow="0.0" />
+        <x:styles>
+            <entry name="border-right" value="solid gray 1px" />
+        </x:styles>
+        <Button enabled="false" x:themeVariants="LUMO_SUCCESS" x:name="btnStart" text="Start">
+            <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#PLAY" />
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            <x:event>click.onComponentEvent</x:event>
+        </Button>
+        <Button enabled="false" x:themeVariants="LUMO_ERROR" x:name="btnStop" text="Stop">
+            <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#STOP" />
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            <x:event>click.onComponentEvent</x:event>
+        </Button>
+        <Button x:themeVariants="LUMO_PRIMARY LUMO_ERROR" x:name="btnClearBooks" x:tooltip="Clears all inserted books from insert performance test." text="Reset Insert Test" maxWidth="">
+            <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#TRASH" />
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            <x:event>click.onComponentEvent</x:event>
+        </Button>
+        <Hr x:name="hr">
+            <x:constraints width="0px" height="0px" flex-grow="0.0" />
+        </Hr>
+        <RadioButtonGroup x:name="radioButtonGroup" x:vertical="true">
+            <x:typeArguments>
+                <typeArgument type="String" />
+            </x:typeArguments>
+            <x:constraints width="0px" height="0px" flex-grow="0.0" />
+        </RadioButtonGroup>
+        <MultiSelectComboBox x:name="cmbTargets" autoExpand="com.vaadin.flow.component.combobox.MultiSelectComboBox.AutoExpandMode.BOTH" label="Task Targets">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            <x:typeArguments>
+                <typeArgument type="String" />
+            </x:typeArguments>
+            <x:event>valueChange.valueChanged</x:event>
+        </MultiSelectComboBox>
+        <Hr x:name="hr2">
+            <x:constraints width="0px" height="0px" flex-grow="0.0" />
+        </Hr>
+        <NumberField x:name="rangeAmountThreads" value="1.0" label="Amount Threads (per Server)">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+        </NumberField>
+        <NumberField x:name="rangeRunCount" value="1.0" label="Run Count (per Server)">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+        </NumberField>
+        <Checkbox x:name="ckRunInfinite" label="Run Forever">
+            <x:constraints width="0px" height="0px" flex-grow="0.0" />
+            <x:event>valueChange.valueChanged</x:event>
+        </Checkbox>
+        <NumberField x:name="rangeRampUpSeconds" value="0.0" label="Ramp Up Delay (seconds). 0 = no delay">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+        </NumberField>
+        <Hr x:name="hr3">
+            <x:constraints width="0px" height="0px" flex-grow="0.0" />
+        </Hr>
+        <NumberField x:name="rangeRandomSeed" value="123456.0" label="Random Seed">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+        </NumberField>
+        <IntegerField x:name="rangeAdminDataAmount" value="10000" label="Data Amount (Books)">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+        </IntegerField>
+        <Button x:name="btnAdminGenerateData" x:tooltip="Generates random data for later performance tests." text="Generate Data">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            <x:event>click.onComponentEvent</x:event>
+        </Button>
+        <Button x:themeVariants="LUMO_PRIMARY LUMO_ERROR" x:name="btnClearData" x:tooltip="Clear the whole database on both servers." text="Clear Data">
+            <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            <x:event>click.onComponentEvent</x:event>
+        </Button>
+    </VerticalLayout>
+    <VerticalLayout spacing="false" x:name="verticalLayout2" padding="false">
+        <x:constraints width="100%" height="100%" flex-grow="1.0" />
+        <x:styles>
+            <entry name="padding-right" value="10px" />
+        </x:styles>
+        <VerticalLayout spacing="false" x:name="containerProgress" padding="false">
+            <x:constraints width="100%" height="-1px" flex-grow="0.0" />
+            <x:styles>
+                <entry name="margin-top" value="10px" />
+            </x:styles>
+            <NativeLabel x:name="txtProgressStatus" text="H4">
+                <x:constraints width="0px" height="0px" flex-grow="0.0" />
+            </NativeLabel>
+            <ProgressBar indeterminate="true" x:name="progressBar" value="0.5">
+                <x:constraints width="100%" height="15px" flex-grow="0.0" />
+            </ProgressBar>
+        </VerticalLayout>
+        <Tabs x:name="tabs">
+            <x:constraints width="100%" height="-1px" flex-grow="1.0" />
+            <x:event>selectedChange.onComponentEvent</x:event>
+            <Tab x:name="tabOverview" label="Data Information" />
+        </Tabs>
+        <Div x:name="divContent">
+            <x:constraints width="100%" height="100%" flex-grow="0.0" />
+        </Div>
+    </VerticalLayout>
+</HorizontalLayout>

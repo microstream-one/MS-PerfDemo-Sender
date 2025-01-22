@@ -61,6 +61,16 @@ public class BookstoreHttpClient implements AutoCloseable
 		request(null, "/books/flushinsertPM", "DELETE");
 	}
 	
+	public long countBooks()
+	{
+		return retrieve(null, "/books/count", "GET", new TypeReference<Long>(){});
+	}
+	
+	public long countBooksInsertPM()
+	{
+		return retrieve(null, "/books/countInsertPM", "GET", new TypeReference<Long>(){});
+	}
+	
 	public List<DTOBook> searchByTitle(final String title)
 	{
 		return retrieve(

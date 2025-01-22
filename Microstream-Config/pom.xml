@@ -8,7 +8,7 @@
 	<artifactId>microstream-config</artifactId>
 	<packaging>war</packaging>
 	<name>Microstream-Config</name>
-	<version>1.0.0</version>
+	<version>1.0.2</version>
 
 	<properties>
 		<project.build.sourceEncoding>
@@ -164,6 +164,7 @@
 				</executions>
 				<configuration>
 					<pnpmEnable>true</pnpmEnable>
+					<frontendDirectory>${project.basedir}/frontend</frontendDirectory>
 				</configuration>
 			</plugin>
 

@@ -20,5 +20,5 @@ public record DTOBook(
 	DTOAuthor author,
 	DTOPublisher publisher
 )
-{
+{	
 }

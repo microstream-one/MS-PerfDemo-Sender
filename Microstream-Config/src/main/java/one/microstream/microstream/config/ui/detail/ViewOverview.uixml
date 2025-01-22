@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE xml>
+<?xdevuiml version="1.0"?>
+<?template BROWSER_WUXGA?>
+<?import com.vaadin.flow.component.button.Button?>
+<?import com.vaadin.flow.component.grid.Grid?>
+<?import com.vaadin.flow.component.html.H2?>
+<?import com.vaadin.flow.component.orderedlayout.HorizontalLayout?>
+<?import com.vaadin.flow.component.orderedlayout.VerticalLayout?>
+<?import com.vaadin.flow.component.splitlayout.SplitLayout?>
+<?import com.vaadin.flow.component.textfield.TextField?>
+<?import one.microstream.microstream.config.ui.model.Book?>
+<HorizontalLayout xmlns:x="http://xml.xdev-software.com/xdevuiml" x:name="ViewOverview">
+    <x:constraints zpos="0" width="100%" height="100%" />
+    <SplitLayout x:name="splitLayout">
+        <x:constraints width="100%" height="100%" flex-grow="1.0" />
+        <VerticalLayout spacing="false" x:name="horizontalLayout" padding="false" defaultHorizontalComponentAlignment="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.STRETCH">
+            <x:constraints splitlayout-position="PRIMARY" width="100%" alignment="AUTO" height="100%" flex-grow="0.0" />
+            <x:styles>
+                <entry name="margin-right" value="10px" />
+            </x:styles>
+            <H2 x:name="h2" text="EclipseStore DB">
+                <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            </H2>
+            <Button x:themeVariants="LUMO_PRIMARY" x:name="btnRefreshESCount" text="Refresh count values">
+                <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#REFRESH" />
+                <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                <x:event>click.onComponentEvent</x:event>
+            </Button>
+            <TextField x:name="txtESBookCount" readOnly="true" label="Books Count">
+                <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            </TextField>
+            <TextField x:name="txtESBookInsertCount" readOnly="true" label="Books Insert Count">
+                <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            </TextField>
+            <HorizontalLayout x:name="horizontalLayout3" defaultVerticalComponentAlignment="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END">
+                <x:constraints width="-1px" height="-1px" flex-grow="0.0" />
+                <x:styles>
+                    <entry name="margin-bottom" value="10px" />
+                </x:styles>
+                <TextField x:name="txtTitleFilter" valueChangeMode="com.vaadin.flow.data.value.ValueChangeMode.LAZY" label="Find by Title">
+                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
+                    <x:event>valueChange.valueChanged</x:event>
+                </TextField>
+                <Button x:themeVariants="LUMO_PRIMARY" x:name="btnLoadESData" text="Search">
+                    <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#SEARCH" />
+                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                    <x:event>click.onComponentEvent</x:event>
+                </Button>
+            </HorizontalLayout>
+            <Grid pageSize="60" x:themeVariants="LUMO_ROW_STRIPES" x:name="gridESData" allRowsVisible="true">
+                <x:typeArguments>
+                    <typeArgument type="Book" />
+                </x:typeArguments>
+                <x:constraints width="100%" height="659px" flex-grow="1.0" />
+                <x:columns>
+                    <column property="isbn" sortable="true" />
+                    <column property="title" sortable="true" />
+                    <column property="authorID" sortable="true" />
+                    <column property="edition" sortable="true" />
+                    <column property="publicationDate" sortable="true" />
+                    <column property="availableQuantity" sortable="true" />
+                    <column property="price" sortable="true" />
+                    <column property="publisherID" sortable="true" />
+                </x:columns>
+            </Grid>
+        </VerticalLayout>
+        <VerticalLayout spacing="false" x:name="horizontalLayout5" padding="false" defaultHorizontalComponentAlignment="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.STRETCH">
+            <x:constraints splitlayout-position="SECONDARY" width="100%" alignment="AUTO" height="100%" flex-grow="0.0" />
+            <x:styles>
+                <entry name="margin-left" value="10px" />
+            </x:styles>
+            <H2 x:name="h222" text="PostgreSQL DB">
+                <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            </H2>
+            <Button x:themeVariants="LUMO_PRIMARY" x:name="btnRefreshPostCount" text="Refresh count values">
+                <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#REFRESH" />
+                <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                <x:event>click.onComponentEvent</x:event>
+            </Button>
+            <TextField x:name="txtPostBookCount" readOnly="true" label="Books Count">
+                <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            </TextField>
+            <TextField x:name="txtPostBookInsertCount" readOnly="true" label="Books Insert Count">
+                <x:constraints width="100%" height="0px" flex-grow="0.0" />
+            </TextField>
+            <HorizontalLayout x:name="horizontalLayout4" defaultVerticalComponentAlignment="com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.END">
+                <x:constraints width="-1px" height="0px" flex-grow="0.0" />
+                <x:styles>
+                    <entry name="margin-bottom" value="10px" />
+                </x:styles>
+                <TextField x:name="txtTitleFilterPost" valueChangeMode="com.vaadin.flow.data.value.ValueChangeMode.LAZY" label="Find by Title">
+                    <x:constraints width="100%" height="0px" flex-grow="0.0" />
+                    <x:event>valueChange.valueChanged</x:event>
+                </TextField>
+                <Button x:themeVariants="LUMO_PRIMARY" x:name="btnLoadPostData" text="Search">
+                    <x:icon src="com.vaadin.flow.component.icon.VaadinIcon#SEARCH" />
+                    <x:constraints width="0px" height="0px" flex-grow="0.0" />
+                    <x:event>click.onComponentEvent</x:event>
+                </Button>
+            </HorizontalLayout>
+            <Grid x:themeVariants="LUMO_ROW_STRIPES" x:name="gridPostData">
+                <x:typeArguments>
+                    <typeArgument type="Book" />
+                </x:typeArguments>
+                <x:constraints width="100%" height="100%" flex-grow="1.0" />
+                <x:columns>
+                    <column property="isbn" sortable="true" />
+                    <column property="title" sortable="true" />
+                    <column property="authorID" sortable="true" />
+                    <column property="edition" sortable="true" />
+                    <column property="publicationDate" sortable="true" />
+                    <column property="availableQuantity" sortable="true" />
+                    <column property="price" sortable="true" />
+                    <column property="publisherID" sortable="true" />
+                </x:columns>
+            </Grid>
+        </VerticalLayout>
+    </SplitLayout>
+</HorizontalLayout>

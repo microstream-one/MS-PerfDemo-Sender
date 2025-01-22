@@ -1,8 +1,6 @@
 
 package one.microstream.microstream.config.ui;
 
-import java.time.format.DateTimeFormatter;
-import java.time.format.FormatStyle;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -12,31 +10,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.rapidclipse.framework.server.Rap;
 import com.rapidclipse.framework.server.resources.CaptionUtils;
 import com.rapidclipse.framework.server.security.authentication.RedirectView;
 import com.rapidclipse.framework.server.ui.ItemLabelGeneratorFactory;
+import com.rapidclipse.framework.server.ui.UIUtils;
 import com.vaadin.flow.component.AbstractField.ComponentValueChangeEvent;
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.ComponentEvent;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.HasValue;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
-import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Hr;
+import com.vaadin.flow.component.html.NativeLabel;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.tabs.Tabs.SelectedChangeEvent;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.NumberField;
-import com.vaadin.flow.data.renderer.LocalDateTimeRenderer;
 import com.vaadin.flow.data.renderer.TextRenderer;
+import com.vaadin.flow.router.AfterNavigationEvent;
+import com.vaadin.flow.router.AfterNavigationObserver;
 import com.vaadin.flow.router.Route;
 
 import one.microstream.microstream.config.core.BookstoreHttpClient;
@@ -49,12 +53,12 @@ import one.microstream.microstream.config.core.task.BookByIsbnTask;
 import one.microstream.microstream.config.core.task.BooksByTitleTask;
 import one.microstream.microstream.config.core.task.CreateBookTask;
 import one.microstream.microstream.config.core.task.ResetInsertBookPMTask;
-import one.microstream.microstream.config.domain.Action;
 import one.microstream.microstream.config.dto.DTOBook;
+import one.microstream.microstream.config.ui.detail.ViewOverview;
 
 @RedirectView
 @Route("/")
-public class MainLayout extends VerticalLayout
+public class MainLayout extends HorizontalLayout implements AfterNavigationObserver
 {
 	private static final Logger LOG = LoggerFactory.getLogger(MainLayout.class);
 
@@ -86,6 +90,10 @@ public class MainLayout extends VerticalLayout
 		this.radioButtonGroup.setValue(BOOKS_BY_TITLE);
 		this.cmbTargets.setItems(ECLIPSESTORE, POSTGRES);
 		this.cmbTargets.select(ECLIPSESTORE, POSTGRES);
+
+		tabs.setSelectedIndex(0);
+
+		containerProgress.setVisible(false);
 	}
 
 	/**
@@ -96,6 +104,10 @@ public class MainLayout extends VerticalLayout
 	 */
 	private void btnStart_onClick(final ClickEvent<Button> event)
 	{
+		btnStart.setEnabled(false);
+		btnStop.setEnabled(true);
+		UI.getCurrent().push();
+		
 		final Set<String> targets = this.cmbTargets.getSelectedItems();
 		Supplier<Executable> generator = switch (targets.size())
 		{
@@ -187,7 +199,8 @@ public class MainLayout extends VerticalLayout
 		final Set<String> targets = this.cmbTargets.getSelectedItems();
 
 		final int threadCount = this.rangeAmountThreads.getValue().intValue();
-		final long runCount = ckRunInfinite.getValue() ? Long.MAX_VALUE : this.rangeRunCount.getValue().longValue() / threadCount;
+		final long runCount = ckRunInfinite.getValue() ? Long.MAX_VALUE
+			: this.rangeRunCount.getValue().longValue() / threadCount;
 		final int delayMs = this.rangeRampUpSeconds.getValue().intValue();
 
 		executeTask(taskSupplier, targets, threadCount, runCount, delayMs);
@@ -201,9 +214,6 @@ public class MainLayout extends VerticalLayout
 		int delayMs
 	)
 	{
-		this.btnStart.setEnabled(false);
-		this.btnStop.setEnabled(true);
-
 		this.taskRunner = new TaskRunner(
 			threadCount * targets.size(),
 			runCount,
@@ -221,7 +231,13 @@ public class MainLayout extends VerticalLayout
 		{
 			try
 			{
-				this.getUI().ifPresent(ui -> ui.access(() -> this.btnStop_onClick(null)));
+				this.getUI().ifPresent(ui -> ui.access(() ->
+				{
+					this.btnStop_onClick(null);
+					this.btnAdminGenerateData.setEnabled(true);
+					this.containerProgress.setVisible(false);
+				}));
+
 			}
 			catch (final Exception e)
 			{
@@ -301,22 +317,41 @@ public class MainLayout extends VerticalLayout
 	 */
 	private void btnAdminGenerateData_onClick(final ClickEvent<Button> event)
 	{
-		int bookCount = rangeAdminDataAmount.getValue();
-		books = MockupData.generateData(bookCount, 1_000, 500);
-		Supplier<Executable> taskSupplier = new Supplier<>()
-		{
-			private final List<List<DTOBook>> booksBatched = Lists.partition(books, 1_000);
-			private boolean toggle = false;
+		UI currentUI = UI.getCurrent();
 
-			@Override
-			public Executable get()
+		this.containerProgress.setVisible(true);
+		this.txtProgressStatus.setText("Example data creation...");
+		this.btnAdminGenerateData.setEnabled(false);
+		currentUI.push();
+
+		Rap.getExecutorService().execute(() ->
+		{
+			int bookCount = rangeAdminDataAmount.getValue();
+			books = MockupData.generateData(bookCount, 1_000, 500);
+
+			currentUI.access(() ->
 			{
-				toggle = !toggle;
-				var client = toggle ? esHttpClient : pgHttpClient;
-				return new AdminCreateBooksTask(client, booksBatched);
-			}
-		};
-		this.executeTask(taskSupplier, Set.of(ECLIPSESTORE, POSTGRES), 1, 1, 0);
+				txtProgressStatus.setText("Created Data storing to DB´s...");
+			});
+
+			Supplier<Executable> taskSupplier = new Supplier<>()
+			{
+				private final List<List<DTOBook>> booksBatched = Lists.partition(books, 1_000);
+				private boolean toggle = false;
+
+				@Override
+				public Executable get()
+				{
+					toggle = !toggle;
+					var client = toggle ? esHttpClient : pgHttpClient;
+
+					return new AdminCreateBooksTask(client, booksBatched);
+				}
+
+			};
+			this.executeTask(taskSupplier, Set.of(ECLIPSESTORE, POSTGRES), 1, 1, 0);
+		});
+
 	}
 
 	/**
@@ -355,6 +390,21 @@ public class MainLayout extends VerticalLayout
 		this.executeTask(taskSupplier, Set.of(ECLIPSESTORE, POSTGRES), 1, 1, 0);
 	}
 
+	/**
+	 * Event handler delegate method for the {@link Tabs} {@link #tabs}.
+	 *
+	 * @see ComponentEventListener#onComponentEvent(ComponentEvent)
+	 * @eventHandlerDelegate Do NOT delete, used by UI designer!
+	 */
+	private void tabs_onSelectedChange(final SelectedChangeEvent event)
+	{
+		if (event.getSelectedTab().equals(tabOverview))
+		{
+			divContent.removeAll();
+			divContent.add(new ViewOverview());
+		}
+	}
+
 	/*
 	 * WARNING: Do NOT edit!<br>The content of this method is always regenerated by
 	 * the UI designer.
@@ -362,8 +412,6 @@ public class MainLayout extends VerticalLayout
 	// <generated-code name="initUI">
 	private void initUI()
 	{
-		this.div = new Div();
-		this.horizontalLayout = new HorizontalLayout();
 		this.verticalLayout = new VerticalLayout();
 		this.btnStart = new Button();
 		this.btnStop = new Button();
@@ -381,12 +429,18 @@ public class MainLayout extends VerticalLayout
 		this.rangeAdminDataAmount = new IntegerField();
 		this.btnAdminGenerateData = new Button();
 		this.btnClearData = new Button();
-		this.grid = new Grid<>(Action.class, false);
+		this.verticalLayout2 = new VerticalLayout();
+		this.containerProgress = new VerticalLayout();
+		this.txtProgressStatus = new NativeLabel();
+		this.progressBar = new ProgressBar();
+		this.tabs = new Tabs();
+		this.tabOverview = new Tab();
+		this.divContent = new Div();
 	
 		this.verticalLayout.setSpacing(false);
-		this.verticalLayout.setPadding(false);
 		this.verticalLayout.getStyle().set("overflow-x", "hidden");
 		this.verticalLayout.getStyle().set("overflow-y", "auto");
+		this.verticalLayout.getStyle().set("border-right", "solid gray 1px");
 		this.btnStart.setEnabled(false);
 		this.btnStart.setText("Start");
 		this.btnStart.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
@@ -423,20 +477,16 @@ public class MainLayout extends VerticalLayout
 		this.btnClearData.setText("Clear Data");
 		this.btnClearData.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 		this.btnClearData.setTooltipText("Clear the whole database on both servers.");
-		this.grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-		this.grid.addColumn(
-			new LocalDateTimeRenderer<>(
-				Action::getDate,
-				() -> DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT),
-				""
-			)
-		).setKey("date").setHeader("Time").setSortable(true).setAutoWidth(true).setFlexGrow(0);
-		this.grid.addColumn(Action::getDescription)
-			.setKey("description")
-			.setHeader("Action")
-			.setSortable(true)
-			.setAutoWidth(true);
-		this.grid.setSelectionMode(Grid.SelectionMode.SINGLE);
+		this.verticalLayout2.setSpacing(false);
+		this.verticalLayout2.setPadding(false);
+		this.verticalLayout2.getStyle().set("padding-right", "10px");
+		this.containerProgress.setSpacing(false);
+		this.containerProgress.setPadding(false);
+		this.containerProgress.getStyle().set("margin-top", "10px");
+		this.txtProgressStatus.setText("H4");
+		this.progressBar.setIndeterminate(true);
+		this.progressBar.setValue(0.5);
+		this.tabOverview.setLabel("Data Information");
 	
 		this.btnStart.setWidthFull();
 		this.btnStart.setHeight(null);
@@ -483,17 +533,26 @@ public class MainLayout extends VerticalLayout
 			this.btnAdminGenerateData,
 			this.btnClearData
 		);
-		this.verticalLayout.setWidth("300px");
+		this.txtProgressStatus.setSizeUndefined();
+		this.progressBar.setWidthFull();
+		this.progressBar.setHeight("15px");
+		this.containerProgress.add(this.txtProgressStatus, this.progressBar);
+		this.tabs.add(this.tabOverview);
+		this.containerProgress.setWidthFull();
+		this.containerProgress.setHeight(null);
+		this.tabs.setWidthFull();
+		this.tabs.setHeight(null);
+		this.divContent.setSizeFull();
+		this.verticalLayout2.add(this.containerProgress, this.tabs, this.divContent);
+		this.verticalLayout2.setFlexGrow(1.0, this.tabs);
+		this.verticalLayout.setWidth("400px");
 		this.verticalLayout.setHeightFull();
-		this.grid.setWidth(null);
-		this.grid.setHeightFull();
-		this.horizontalLayout.add(this.verticalLayout, this.grid);
-		this.horizontalLayout.setSizeFull();
-		this.div.add(this.horizontalLayout);
-		this.div.setSizeFull();
-		this.add(this.div);
-		this.setHorizontalComponentAlignment(FlexComponent.Alignment.CENTER, this.div);
+		this.verticalLayout2.setSizeFull();
+		this.add(this.verticalLayout, this.verticalLayout2);
+		this.setFlexGrow(1.0, this.verticalLayout2);
 		this.setSizeFull();
+	
+		this.tabs.setSelectedIndex(-1);
 	
 		this.btnStart.addClickListener(this::btnStart_onClick);
 		this.btnStop.addClickListener(this::btnStop_onClick);
@@ -502,20 +561,36 @@ public class MainLayout extends VerticalLayout
 		this.ckRunInfinite.addValueChangeListener(this::ckRunInfinite_valueChanged);
 		this.btnAdminGenerateData.addClickListener(this::btnAdminGenerateData_onClick);
 		this.btnClearData.addClickListener(this::btnClearData_onClick);
+		this.tabs.addSelectedChangeListener(this::tabs_onSelectedChange);
 	} // </generated-code>
 
 	// <generated-code name="variables">
-	private Checkbox ckRunInfinite;
-	private Button btnStart, btnStop, btnClearBooks, btnAdminGenerateData, btnClearData;
-	private Grid<Action> grid;
+	private ProgressBar progressBar;
+	private Tab tabOverview;
 	private NumberField rangeAmountThreads, rangeRunCount, rangeRampUpSeconds, rangeRandomSeed;
-	private IntegerField rangeAdminDataAmount;
-	private HorizontalLayout horizontalLayout;
-	private VerticalLayout verticalLayout;
-	private Div div;
+	private VerticalLayout verticalLayout, verticalLayout2, containerProgress;
+	private Div divContent;
+	private Tabs tabs;
 	private Hr hr, hr2, hr3;
 	private RadioButtonGroup<String> radioButtonGroup;
+	private NativeLabel txtProgressStatus;
+	private Checkbox ckRunInfinite;
+	private Button btnStart, btnStop, btnClearBooks, btnAdminGenerateData, btnClearData;
+	private IntegerField rangeAdminDataAmount;
 	private MultiSelectComboBox<String> cmbTargets;
 	// </generated-code>
 
+	@Override
+	public void afterNavigation(AfterNavigationEvent event)
+	{
+		long countESBooks = esHttpClient.countBooks();
+		long countPGBooks = pgHttpClient.countBooks();
+		
+		if (countPGBooks > 0 && countESBooks > 0)
+		{
+			btnStart.setEnabled(true);		
+		}
+	}
+
+	
 }

@@ -19,7 +19,7 @@ public class AdminCreateBooksTask implements Executable
 
 	@Override
 	public void execute()
-	{
+	{					
 		for (List<DTOBook> books : books)
 		{
 			httpClient.createBookBatched(books);

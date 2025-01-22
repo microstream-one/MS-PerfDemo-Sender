@@ -31,6 +31,9 @@ public class LoginView extends VerticalLayout
 	{
 		super();
 		this.initUI();
+		
+		txtUsername.setValue("123");
+		txtPassword.setValue("123");
 	}
 
 	/**
