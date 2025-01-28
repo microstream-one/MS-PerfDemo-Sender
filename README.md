@@ -15,3 +15,4 @@ This application configures the data to be tested and also send the requests in 
 3. Copy that image to your docker environment
 4. Use the docker compose file from sender project here to deploy whole infrastructure:
    https://github.com/microstream-one/MS-PerfDemo-Sender/tree/master/Microstream-Config/performance-demo
+5. Use following command start containers: ```docker-compose up -d```
