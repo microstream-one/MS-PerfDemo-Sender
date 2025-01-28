@@ -15,4 +15,11 @@ This application configures the data to be tested and also send the requests in 
 3. Copy that image to your docker environment
 4. Use the docker compose file from sender project here to deploy whole infrastructure:
    https://github.com/microstream-one/MS-PerfDemo-Sender/tree/master/Microstream-Config/performance-demo
-5. Use following command start containers: ```docker-compose up -d```
+5. Use following command to start containers: ```docker-compose up -d```
+
+## Usage of the Frontend
+
+1. Login with Username / Password --> 123/123 as default
+2. Main screen should look like following:
+
+<img width="1196" alt="PerformanceTest_doc" src="https://github.com/user-attachments/assets/e3d205e2-54f0-461b-a587-bd4ad30c3ece" />
