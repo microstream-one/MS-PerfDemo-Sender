@@ -5,10 +5,10 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>one.microstream</groupId>
-	<artifactId>microstream-config</artifactId>
+	<artifactId>perfdemo-rest-caller-app</artifactId>
 	<packaging>war</packaging>
 	<name>Microstream-Config</name>
-	<version>1.0.3</version>
+	<version>1.0.4</version>
 
 	<properties>
 		<project.build.sourceEncoding>
@@ -175,7 +175,7 @@
 				<configuration>
 					<images>
 						<image>
-							<name>microstream-performance-demo-caller</name>
+							<name>perfdemo-rest-caller-app</name>
 							<build>
 								<dockerFile>Dockerfile</dockerFile>
 								<assemblies>
