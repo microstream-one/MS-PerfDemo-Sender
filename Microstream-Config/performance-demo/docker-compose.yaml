@@ -16,7 +16,7 @@ services:
       
   # The eclipsestore database and demo REST server
   eclipsestore-server:
-    image: perfdemo-es-rest-proxy:1.0.4
+    image: perfdemo-es-rest-proxy:1.0.5
     restart: always
     volumes:
       - eclipsestore:/storage
