@@ -11,7 +11,7 @@ This application configures the data to be tested and also send the requests in 
 ## Setup
 
 1. Build an image by using the following command:
-   ```clean package install "production"```
+   ```mvn clean package install -Pproduction```
 3. Copy that image to your docker environment
 4. Use the docker compose file from sender project here to deploy whole infrastructure:
    https://github.com/microstream-one/MS-PerfDemo-Sender/tree/master/Microstream-Config/performance-demo
