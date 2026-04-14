@@ -16,7 +16,7 @@ services:
       
   # The eclipsestore database and demo REST server
   eclipsestore-server:
-    image: perfdemo-es-rest-proxy:1.0.5
+    image: perfdemo-es-rest-proxy:1.0.7
     restart: always
     volumes:
       - eclipsestore:/storage
@@ -26,7 +26,7 @@ services:
   
   # The postgres database server
   postgres-db:
-    image: postgres
+    image: postgres:17.9
     restart: always
     # set shared memory limit when using docker-compose
     shm_size: 128mb
@@ -52,17 +52,19 @@ services:
 
   # For allowing container metric export of the postgres database
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
     privileged: true
-    ports:
-      - 9328:8080
+    image: ghcr.io/google/cadvisor:7cbdee9-7cbdee9260c4292d5d27d00416ce8a7dc1dc12a0
+    container_name: cadvisor
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-  
+      - /dev/disk:/dev/disk:ro
+    restart: always
+    ports:
+      - 9328:8080
+
   # Prometheus to gather metrics from the postgres database and demo server as well as the eclipsestore demo server
   prometheus:
     image: prom/prometheus
